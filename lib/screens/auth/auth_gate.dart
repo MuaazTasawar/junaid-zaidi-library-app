@@ -6,6 +6,7 @@ import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
 import 'signup_email_screen.dart';
+import 'signup_form_screen.dart';
 import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
@@ -15,10 +16,9 @@ import 'welcome_screen.dart';
 /// Navigator for the signed-out flow, the same pattern root_shell.dart
 /// already uses for the "More" tab stack.
 ///
-/// login and signupForm are still unbuilt as of Phase 3 (Phases 5 and 4
-/// respectively) — pushing those two lands on `_ComingSoonScreen`, a
-/// real, finished screen, just an intentional placeholder for routes
-/// this phase hasn't built yet.
+/// login is still unbuilt as of Phase 4 (Phase 5) — pushing it lands on
+/// `_ComingSoonScreen`, a real, finished screen, just an intentional
+/// placeholder for the one route this phase hasn't built yet.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -46,6 +46,8 @@ class _AuthGateState extends State<AuthGate> {
       case AuthRoutes.verifyEmail:
         final email = settings.arguments as String? ?? '';
         page = VerifyEmailScreen(email: email);
+      case AuthRoutes.signupForm:
+        page = const SignupFormScreen();
       default:
         page = const _ComingSoonScreen();
     }
