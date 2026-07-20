@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 
 import '../../models/student_request.dart';
@@ -82,7 +82,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     final email = _authService.currentUser?.email;
     if (email == null || !_authService.isEmailVerified) {
       setState(() => _formError =
-      'Your email session expired — go back and verify your email again.');
+          'Your email session expired — go back and verify your email again.');
       return;
     }
 
@@ -102,7 +102,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       setState(() => _isSubmitted = true);
     } catch (_) {
       setState(() =>
-      _formError = 'Could not submit your request. Check your connection and try again.');
+          _formError = 'Could not submit your request. Check your connection and try again.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -118,63 +118,66 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       return _SubmittedView(onDone: _handleBackToWelcome);
     }
 
-    return ScreenContainer(
-      scroll: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: AppSpacing.md),
-          Heading(text: 'Registration details', level: 3),
-          const SizedBox(height: AppSpacing.xs),
-          AppText(
-            'Your email is verified. Fill this in and a librarian will review your request.',
-            variant: 'bodyBase',
-            tone: 'secondary',
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          AppTextField(
-            label: 'Full name',
-            controller: _fullNameController,
-            placeholder: 'e.g. Muaaz Tasawar',
-            prefixIcon: Ionicons.person_outline,
-            errorText: _fullNameError,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Registration number',
-            controller: _regNumberController,
-            placeholder: 'e.g. FA23-BCS-123',
-            prefixIcon: Ionicons.card_outline,
-            errorText: _regNumberError,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Department',
-            controller: _departmentController,
-            placeholder: 'e.g. Department of Computer Science',
-            prefixIcon: Ionicons.school_outline,
-            errorText: _departmentError,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Phone number',
-            controller: _phoneController,
-            placeholder: 'e.g. 03001234567',
-            keyboardType: TextInputType.phone,
-            prefixIcon: Ionicons.call_outline,
-            errorText: _phoneError,
-          ),
-          if (_formError != null) ...[
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: ScreenContainer(
+        scroll: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             const SizedBox(height: AppSpacing.md),
-            AppText(_formError!, variant: 'bodySmall', tone: 'error'),
+            Heading(text: 'Registration details', level: 3),
+            const SizedBox(height: AppSpacing.xs),
+            AppText(
+              'Your email is verified. Fill this in and a librarian will review your request.',
+              variant: 'bodyBase',
+              tone: 'secondary',
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppTextField(
+              label: 'Full name',
+              controller: _fullNameController,
+              placeholder: 'e.g. Muaaz Tasawar',
+              prefixIcon: Ionicons.person_outline,
+              errorText: _fullNameError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Registration number',
+              controller: _regNumberController,
+              placeholder: 'e.g. FA23-BCS-123',
+              prefixIcon: Ionicons.card_outline,
+              errorText: _regNumberError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Department',
+              controller: _departmentController,
+              placeholder: 'e.g. Department of Computer Science',
+              prefixIcon: Ionicons.school_outline,
+              errorText: _departmentError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Phone number',
+              controller: _phoneController,
+              placeholder: 'e.g. 03001234567',
+              keyboardType: TextInputType.phone,
+              prefixIcon: Ionicons.call_outline,
+              errorText: _phoneError,
+            ),
+            if (_formError != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppText(_formError!, variant: 'bodySmall', tone: 'error'),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(
+              label: 'Submit request',
+              onPressed: _isSubmitting ? null : _handleSubmit,
+              isLoading: _isSubmitting,
+            ),
           ],
-          const SizedBox(height: AppSpacing.xl),
-          AppButton(
-            label: 'Submit request',
-            onPressed: _isSubmitting ? null : _handleSubmit,
-            isLoading: _isSubmitting,
-          ),
-        ],
+        ),
       ),
     );
   }

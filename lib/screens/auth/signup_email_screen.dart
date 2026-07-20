@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 
@@ -100,60 +100,63 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenContainer(
-      scroll: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: AppSpacing.md),
-          GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              children: [
-                Icon(Ionicons.arrow_back, size: 20, color: useTheme(context).icon),
-                const SizedBox(width: AppSpacing.xs),
-                AppText('Back', variant: 'bodyBase', tone: 'secondary'),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Heading(text: 'Create your account', level: 3),
-          const SizedBox(height: AppSpacing.xs),
-          AppText(
-            'Use your COMSATS email — we\'ll send a verification link before you can register.',
-            variant: 'bodyBase',
-            tone: 'secondary',
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          AppTextField(
-            label: 'Email',
-            controller: _emailController,
-            placeholder: 'you@cuiatd.edu.pk',
-            keyboardType: TextInputType.emailAddress,
-            prefixIcon: Ionicons.mail_outline,
-            errorText: _emailError,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Password',
-            controller: _passwordController,
-            placeholder: 'At least 6 characters',
-            obscureText: true,
-            prefixIcon: Ionicons.lock_closed_outline,
-            errorText: _passwordError,
-          ),
-          if (_formError != null) ...[
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: ScreenContainer(
+        scroll: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
             const SizedBox(height: AppSpacing.md),
-            AppText(_formError!, variant: 'bodySmall', tone: 'error'),
+            GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Icon(Ionicons.arrow_back, size: 20, color: useTheme(context).icon),
+                  const SizedBox(width: AppSpacing.xs),
+                  AppText('Back', variant: 'bodyBase', tone: 'secondary'),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Heading(text: 'Create your account', level: 3),
+            const SizedBox(height: AppSpacing.xs),
+            AppText(
+              'Use your COMSATS email — we\'ll send a verification link before you can register.',
+              variant: 'bodyBase',
+              tone: 'secondary',
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppTextField(
+              label: 'Email',
+              controller: _emailController,
+              placeholder: 'you@cuiatd.edu.pk',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: Ionicons.mail_outline,
+              errorText: _emailError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Password',
+              controller: _passwordController,
+              placeholder: 'At least 6 characters',
+              obscureText: true,
+              prefixIcon: Ionicons.lock_closed_outline,
+              errorText: _passwordError,
+            ),
+            if (_formError != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppText(_formError!, variant: 'bodySmall', tone: 'error'),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(
+              label: 'Continue',
+              onPressed: _isSubmitting ? null : _handleContinue,
+              isLoading: _isSubmitting,
+            ),
           ],
-          const SizedBox(height: AppSpacing.xl),
-          AppButton(
-            label: 'Continue',
-            onPressed: _isSubmitting ? null : _handleContinue,
-            isLoading: _isSubmitting,
-          ),
-        ],
+        ),
       ),
     );
   }
