@@ -5,20 +5,18 @@ import '../../services/koha_auth_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
+import 'login_screen.dart';
 import 'signup_email_screen.dart';
 import 'signup_form_screen.dart';
 import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
-/// Decides between the auth flow and the app itself on boot, based on
-/// whether a Koha session already exists in secure storage (SDS §9.9 —
-/// Koha owns the real session, Firebase never does). Owns its own nested
-/// Navigator for the signed-out flow, the same pattern root_shell.dart
-/// already uses for the "More" tab stack.
-///
-/// login is still unbuilt as of Phase 4 (Phase 5) — pushing it lands on
-/// `_ComingSoonScreen`, a real, finished screen, just an intentional
-/// placeholder for the one route this phase hasn't built yet.
+/// Decides between the auth flow and the app itself, based on whether a
+/// Koha session exists in secure storage (SDS §9.9 — Koha owns the real
+/// session, Firebase never does). Unlike Phases 2-4, session state is now
+/// held as real State (`_hasSession`) rather than a one-shot Future,
+/// because a successful login (Phase 5) has to flip the app over to
+/// RootShell immediately, without restarting.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -28,12 +26,25 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   final _kohaAuth = KohaAuthService();
-  late final Future<bool> _sessionCheck;
+
+  /// null = still checking on boot, true/false = known session state.
+  bool? _hasSession;
 
   @override
   void initState() {
     super.initState();
-    _sessionCheck = _kohaAuth.isLoggedIn();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final hasSession = await _kohaAuth.isLoggedIn();
+    if (mounted) setState(() => _hasSession = hasSession);
+  }
+
+  /// Passed down to LoginScreen. Flips the gate over to RootShell the
+  /// moment Koha login succeeds — no restart needed.
+  void _handleAuthenticated() {
+    setState(() => _hasSession = true);
   }
 
   Route<dynamic> _onGenerateAuthRoute(RouteSettings settings) {
@@ -41,6 +52,8 @@ class _AuthGateState extends State<AuthGate> {
     switch (settings.name) {
       case AuthRoutes.welcome:
         page = const WelcomeScreen();
+      case AuthRoutes.login:
+        page = LoginScreen(onLoginSuccess: _handleAuthenticated);
       case AuthRoutes.signupEmail:
         page = const SignupEmailScreen();
       case AuthRoutes.verifyEmail:
@@ -56,23 +69,17 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _sessionCheck,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const _AuthLoadingScreen();
-        }
+    if (_hasSession == null) {
+      return const _AuthLoadingScreen();
+    }
 
-        final hasSession = snapshot.data ?? false;
-        if (hasSession) {
-          return const RootShell();
-        }
+    if (_hasSession!) {
+      return const RootShell();
+    }
 
-        return Navigator(
-          initialRoute: AuthRoutes.welcome,
-          onGenerateRoute: _onGenerateAuthRoute,
-        );
-      },
+    return Navigator(
+      initialRoute: AuthRoutes.welcome,
+      onGenerateRoute: _onGenerateAuthRoute,
     );
   }
 }
