@@ -5,6 +5,8 @@ import '../../services/koha_auth_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
+import 'signup_email_screen.dart';
+import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
 /// Decides between the auth flow and the app itself on boot, based on
@@ -13,11 +15,10 @@ import 'welcome_screen.dart';
 /// Navigator for the signed-out flow, the same pattern root_shell.dart
 /// already uses for the "More" tab stack.
 ///
-/// The route switch below only knows about `welcome` as of Phase 2.
-/// login/signup routes are added here in Phases 3 and 5 — until then,
-/// pushing them lands on `_ComingSoonScreen`, which is a real, finished
-/// screen (not a TODO), just an intentional placeholder for routes this
-/// phase hasn't built yet.
+/// login and signupForm are still unbuilt as of Phase 3 (Phases 5 and 4
+/// respectively) — pushing those two lands on `_ComingSoonScreen`, a
+/// real, finished screen, just an intentional placeholder for routes
+/// this phase hasn't built yet.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -40,6 +41,11 @@ class _AuthGateState extends State<AuthGate> {
     switch (settings.name) {
       case AuthRoutes.welcome:
         page = const WelcomeScreen();
+      case AuthRoutes.signupEmail:
+        page = const SignupEmailScreen();
+      case AuthRoutes.verifyEmail:
+        final email = settings.arguments as String? ?? '';
+        page = VerifyEmailScreen(email: email);
       default:
         page = const _ComingSoonScreen();
     }
