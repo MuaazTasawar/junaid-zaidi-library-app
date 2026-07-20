@@ -2,7 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
-import 'screens/root_shell.dart';
+import 'screens/auth/auth_gate.dart';
 import 'theme/semantic/light.dart';
 import 'theme/theme.dart';
 
@@ -18,11 +18,9 @@ void main() async {
 /// doesn't split "root layout" and "tab layout" into separate files the
 /// way expo-router does.
 ///
-/// NOTE: `home` still points straight at RootShell. Phase 2 swaps this to
-/// AuthGate, which will decide between the auth flow and RootShell based
-/// on whether a Koha session exists. Left as RootShell here so Phase 1
-/// stays runnable on its own — Firebase now initializes on launch,
-/// nothing else changes yet.
+/// `home` now points at AuthGate (added Phase 2) instead of RootShell
+/// directly — AuthGate decides which one to show based on Koha session
+/// state.
 class JunaidZaidiLibraryApp extends StatelessWidget {
   const JunaidZaidiLibraryApp({super.key});
 
@@ -47,7 +45,7 @@ class JunaidZaidiLibraryApp extends StatelessWidget {
                 .copyWith(fontSize: AppTypography.bodyLarge.fontSize),
           ),
         ),
-        home: const RootShell(),
+        home: const AuthGate(),
       ),
     );
   }
