@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../navigation/routes.dart';
 import '../../services/firebase_auth_service.dart';
@@ -85,7 +85,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               color: colors.intents.info.light.bg,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(Ionicons.mail_unread_outline, size: 32, color: colors.brand),
+            child: Icon(LucideIcons.mail_open, size: 32, color: colors.brand),
           ),
           const SizedBox(height: AppSpacing.lg),
           Heading(text: 'Check your email', level: 3, textAlign: TextAlign.center),

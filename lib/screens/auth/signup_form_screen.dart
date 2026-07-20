@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../models/student_request.dart';
 import '../../navigation/routes.dart';
@@ -9,9 +9,9 @@ import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 
 /// Step 3 of registration: the student's Firebase email is now verified,
-/// so this form writes a `student_requests` document (SDS §6.3) for a
+/// so this form writes a `student_requests` document (SDS �6.3) for a
 /// librarian to review. Once the write succeeds, the temp Firebase
-/// account is signed out — per SDS §9.9, Firebase's job ends here, it
+/// account is signed out � per SDS �9.9, Firebase's job ends here, it
 /// never becomes the real session.
 class SignupFormScreen extends StatefulWidget {
   const SignupFormScreen({super.key});
@@ -82,7 +82,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     final email = _authService.currentUser?.email;
     if (email == null || !_authService.isEmailVerified) {
       setState(() => _formError =
-          'Your email session expired — go back and verify your email again.');
+          'Your email session expired � go back and verify your email again.');
       return;
     }
 
@@ -138,7 +138,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
               label: 'Full name',
               controller: _fullNameController,
               placeholder: 'e.g. Muaaz Tasawar',
-              prefixIcon: Ionicons.person_outline,
+              prefixIcon: LucideIcons.user,
               errorText: _fullNameError,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -146,7 +146,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
               label: 'Registration number',
               controller: _regNumberController,
               placeholder: 'e.g. FA23-BCS-123',
-              prefixIcon: Ionicons.card_outline,
+              prefixIcon: LucideIcons.id_card,
               errorText: _regNumberError,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -154,7 +154,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
               label: 'Department',
               controller: _departmentController,
               placeholder: 'e.g. Department of Computer Science',
-              prefixIcon: Ionicons.school_outline,
+              prefixIcon: LucideIcons.graduation_cap,
               errorText: _departmentError,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -163,7 +163,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
               controller: _phoneController,
               placeholder: 'e.g. 03001234567',
               keyboardType: TextInputType.phone,
-              prefixIcon: Ionicons.call_outline,
+              prefixIcon: LucideIcons.phone,
               errorText: _phoneError,
             ),
             if (_formError != null) ...[
@@ -208,7 +208,7 @@ class _SubmittedView extends StatelessWidget {
               color: colors.intents.success.light.bg,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(Ionicons.checkmark_circle_outline,
+            child: Icon(LucideIcons.circle_check,
                 size: 36, color: colors.intents.success.light.fg),
           ),
           const SizedBox(height: AppSpacing.lg),

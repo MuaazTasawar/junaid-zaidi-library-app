@@ -1,6 +1,6 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../navigation/routes.dart';
 import '../../services/firebase_auth_service.dart';
@@ -10,8 +10,8 @@ import '../../widgets/ui.dart';
 final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
 
 /// Step 1 of registration: collects the email/password used only to prove
-/// the student controls their COMSATS email (SDS §9.9). This account is
-/// temporary — it exists purely to unlock the verification email, and
+/// the student controls their COMSATS email (SDS �9.9). This account is
+/// temporary � it exists purely to unlock the verification email, and
 /// gets discarded (signed out) once the request is submitted in Phase 4.
 class SignupEmailScreen extends StatefulWidget {
   const SignupEmailScreen({super.key});
@@ -113,7 +113,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  Icon(Ionicons.arrow_back, size: 20, color: useTheme(context).icon),
+                  Icon(LucideIcons.arrow_left, size: 20, color: useTheme(context).icon),
                   const SizedBox(width: AppSpacing.xs),
                   AppText('Back', variant: 'bodyBase', tone: 'secondary'),
                 ],
@@ -123,7 +123,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
             Heading(text: 'Create your account', level: 3),
             const SizedBox(height: AppSpacing.xs),
             AppText(
-              'Use your COMSATS email — we\'ll send a verification link before you can register.',
+              'Use your COMSATS email � we\'ll send a verification link before you can register.',
               variant: 'bodyBase',
               tone: 'secondary',
             ),
@@ -133,7 +133,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
               controller: _emailController,
               placeholder: 'you@cuiatd.edu.pk',
               keyboardType: TextInputType.emailAddress,
-              prefixIcon: Ionicons.mail_outline,
+              prefixIcon: LucideIcons.mail,
               errorText: _emailError,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -142,7 +142,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
               controller: _passwordController,
               placeholder: 'At least 6 characters',
               obscureText: true,
-              prefixIcon: Ionicons.lock_closed_outline,
+              prefixIcon: LucideIcons.lock,
               errorText: _passwordError,
             ),
             if (_formError != null) ...[

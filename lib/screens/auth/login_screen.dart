@@ -1,12 +1,12 @@
-﻿import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../navigation/routes.dart';
 import '../../services/koha_auth_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 
-/// The real login (SDS §9.9) — goes straight to Koha's
+/// The real login (SDS �9.9) � goes straight to Koha's
 /// POST /api/v1/auth/password, never through Firebase. Firebase's only
 /// role in this app ends at email verification during sign-up.
 class LoginScreen extends StatefulWidget {
@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  Icon(Ionicons.arrow_back, size: 20, color: useTheme(context).icon),
+                  Icon(LucideIcons.arrow_left, size: 20, color: useTheme(context).icon),
                   const SizedBox(width: AppSpacing.xs),
                   AppText('Back', variant: 'bodyBase', tone: 'secondary'),
                 ],
@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
               label: 'Username',
               controller: _usernameController,
               placeholder: 'Your library username',
-              prefixIcon: Ionicons.person_outline,
+              prefixIcon: LucideIcons.user,
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: _passwordController,
               placeholder: 'Your library password',
               obscureText: true,
-              prefixIcon: Ionicons.lock_closed_outline,
+              prefixIcon: LucideIcons.lock,
             ),
             if (_formError != null) ...[
               const SizedBox(height: AppSpacing.md),

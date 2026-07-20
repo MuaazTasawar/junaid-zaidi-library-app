@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../data/student_profile.dart';
 import '../../theme/theme.dart';
@@ -54,13 +54,13 @@ class ProfileScreen extends StatelessWidget {
           ),
           _groupedList(colors, [
             ListRow(
-              icon: Ionicons.school_outline,
+              icon: LucideIcons.graduation_cap,
               label: 'Department',
               secondaryLabel: student.department,
               showChevron: false,
             ),
             ListRow(
-              icon: Ionicons.mail_outline,
+              icon: LucideIcons.mail,
               label: 'Email',
               secondaryLabel: student.email,
               showChevron: false,

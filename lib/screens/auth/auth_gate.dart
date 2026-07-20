@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../navigation/routes.dart';
 import '../../services/koha_auth_service.dart';
+import '../../theme/semantic/light.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
@@ -12,7 +13,7 @@ import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
 /// Decides between the auth flow and the app itself, based on whether a
-/// Koha session exists in secure storage (SDS §9.9 — Koha owns the real
+/// Koha session exists in secure storage (SDS Â§9.9 â€” Koha owns the real
 /// session, Firebase never does). Unlike Phases 2-4, session state is now
 /// held as real State (`_hasSession`) rather than a one-shot Future,
 /// because a successful login (Phase 5) has to flip the app over to
@@ -42,7 +43,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   /// Passed down to LoginScreen. Flips the gate over to RootShell the
-  /// moment Koha login succeeds — no restart needed.
+  /// moment Koha login succeeds â€” no restart needed.
   void _handleAuthenticated() {
     setState(() => _hasSession = true);
   }
@@ -64,7 +65,10 @@ class _AuthGateState extends State<AuthGate> {
       default:
         page = const _ComingSoonScreen();
     }
-    return MaterialPageRoute(builder: (_) => page, settings: settings);
+    return MaterialPageRoute(
+      builder: (_) => Scaffold(backgroundColor: lightColors.background.primary, body: page),
+      settings: settings,
+    );
   }
 
   @override

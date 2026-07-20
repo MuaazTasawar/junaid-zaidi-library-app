@@ -190,6 +190,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_lucide:
+    dependency: "direct main"
+    description:
+      name: flutter_lucide
+      sha256: d2866c9ba75b2300e73a888489f0d7ef1d225e1c352d7e7f5c7fdff7d04e294c
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.11.0"
   flutter_secure_storage:
     dependency: "direct main"
     description:
@@ -280,14 +288,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
-  ionicons:
-    dependency: "direct main"
-    description:
-      name: ionicons
-      sha256: "5496bc65a16115ecf05b15b78f494ee4a8869504357668f0a11d689e970523cf"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.2"
   jni:
     dependency: transitive
     description:

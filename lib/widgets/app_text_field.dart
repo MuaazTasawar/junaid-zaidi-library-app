@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../theme/theme.dart';
 import 'app_text.dart';
@@ -111,7 +111,7 @@ class _AppTextFieldState extends State<AppTextField> {
                     label: _obscure ? 'Show password' : 'Hide password',
                     button: true,
                     child: Icon(
-                      _obscure ? Ionicons.eye_outline : Ionicons.eye_off_outline,
+                      _obscure ? LucideIcons.eye : LucideIcons.eye_off,
                       size: 18,
                       color: colors.icon,
                     ),
