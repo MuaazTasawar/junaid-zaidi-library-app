@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../models/student_request.dart';
@@ -8,10 +9,12 @@ import '../../services/firestore_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 
+final _cnicPattern = RegExp(r'^\d{5}-\d{7}-\d$');
+
 /// Step 3 of registration: the student's Firebase email is now verified,
-/// so this form writes a `student_requests` document (SDS �6.3) for a
+/// so this form writes a `student_requests` document (SDS §6.3) for a
 /// librarian to review. Once the write succeeds, the temp Firebase
-/// account is signed out � per SDS �9.9, Firebase's job ends here, it
+/// account is signed out — per SDS §9.9, Firebase's job ends here, it
 /// never becomes the real session.
 class SignupFormScreen extends StatefulWidget {
   const SignupFormScreen({super.key});
@@ -25,6 +28,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
   final _regNumberController = TextEditingController();
   final _departmentController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _cnicController = TextEditingController();
 
   final _authService = FirebaseAuthService();
   final _firestoreService = FirestoreService();
@@ -33,6 +37,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
   String? _regNumberError;
   String? _departmentError;
   String? _phoneError;
+  String? _cnicError;
   String? _formError;
 
   bool _isSubmitting = false;
@@ -44,6 +49,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     _regNumberController.dispose();
     _departmentController.dispose();
     _phoneController.dispose();
+    _cnicController.dispose();
     super.dispose();
   }
 
@@ -53,6 +59,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       _regNumberError = null;
       _departmentError = null;
       _phoneError = null;
+      _cnicError = null;
       _formError = null;
     });
 
@@ -73,6 +80,10 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       setState(() => _phoneError = 'Enter a valid phone number.');
       isValid = false;
     }
+    if (!_cnicPattern.hasMatch(_cnicController.text.trim())) {
+      setState(() => _cnicError = 'Enter your CNIC as xxxxx-xxxxxxx-x.');
+      isValid = false;
+    }
     return isValid;
   }
 
@@ -83,7 +94,7 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     final email = user?.email;
     if (email == null || !_authService.isEmailVerified) {
       setState(() => _formError =
-      'Your email session expired — go back and verify your email again.');
+          'Your email session expired — go back and verify your email again.');
       return;
     }
 
@@ -95,25 +106,24 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       // the client-side flag, so force a fresh token before writing or
       // firestore.rules rejects with permission-denied.
       await user!.getIdToken(true);
+
       final request = StudentRequest(
         fullName: _fullNameController.text.trim(),
         registrationNumber: _regNumberController.text.trim(),
         department: _departmentController.text.trim(),
         email: email,
         phone: _phoneController.text.trim(),
+        cnic: _cnicController.text.trim(),
       );
       await _firestoreService.submitStudentRequest(request);
       await _authService.signOut();
 
       if (!mounted) return;
       setState(() => _isSubmitted = true);
-    }
-  catch (e) {
-    debugPrint('Submit request failed: $e');
-    setState(() =>
-    _formError =
-    'Could not submit your request. Check your connection and try again.');
-  }finally {
+    } catch (_) {
+      setState(() =>
+          _formError = 'Could not submit your request. Check your connection and try again.');
+    } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
@@ -176,6 +186,20 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
               prefixIcon: LucideIcons.phone,
               errorText: _phoneError,
             ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'CNIC',
+              controller: _cnicController,
+              placeholder: 'xxxxx-xxxxxxx-x',
+              keyboardType: TextInputType.number,
+              prefixIcon: LucideIcons.file_text,
+              errorText: _cnicError,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(13),
+                _CnicDashFormatter(),
+              ],
+            ),
             if (_formError != null) ...[
               const SizedBox(height: AppSpacing.md),
               AppText(_formError!, variant: 'bodySmall', tone: 'error'),
@@ -189,6 +213,30 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Auto-inserts the two CNIC dashes as the student types, so the field
+/// always displays as xxxxx-xxxxxxx-x. Combined with
+/// FilteringTextInputFormatter.digitsOnly (upstream in the formatter
+/// chain), this only ever sees raw digits as input.
+class _CnicDashFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text;
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      buffer.write(digits[i]);
+      if (i == 4 || i == 11) buffer.write('-');
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
@@ -218,8 +266,7 @@ class _SubmittedView extends StatelessWidget {
               color: colors.intents.success.light.bg,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(LucideIcons.circle_check,
-                size: 36, color: colors.intents.success.light.fg),
+            child: Icon(LucideIcons.circle_check, size: 36, color: colors.intents.success.light.fg),
           ),
           const SizedBox(height: AppSpacing.lg),
           Heading(text: 'Request submitted', level: 3, textAlign: TextAlign.center),

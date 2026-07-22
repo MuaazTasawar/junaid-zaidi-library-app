@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
-import '../theme/theme.dart';
 import 'app_text.dart';
+import '../theme/theme.dart';
 
 /// Text field primitive for the auth flow. Mirrors SearchInput's
 /// focus-border treatment (border.tertiary color while unfocused, text
@@ -18,6 +19,7 @@ class AppTextField extends StatefulWidget {
   final IconData? prefixIcon;
   final ValueChanged<String>? onChanged;
   final bool enabled;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     super.key,
@@ -30,6 +32,7 @@ class AppTextField extends StatefulWidget {
     this.prefixIcon,
     this.onChanged,
     this.enabled = true,
+    this.inputFormatters,
   });
 
   @override
@@ -62,8 +65,8 @@ class _AppTextFieldState extends State<AppTextField> {
     final Color borderColor = hasError
         ? colors.error
         : _isFocused
-        ? colors.brand
-        : colors.border;
+            ? colors.brand
+            : colors.border;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,6 +95,7 @@ class _AppTextFieldState extends State<AppTextField> {
                   obscureText: widget.obscureText ? _obscure : false,
                   keyboardType: widget.keyboardType,
                   onChanged: widget.onChanged,
+                  inputFormatters: widget.inputFormatters,
                   style: AppTypography.bodyBase.toTextStyle(color: colors.text.primary),
                   decoration: InputDecoration(
                     hintText: widget.placeholder,

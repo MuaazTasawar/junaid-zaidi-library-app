@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Status values used by the librarian-approval workflow (SDS §9.7).
 class StudentRequestStatus {
@@ -18,6 +18,7 @@ class StudentRequest {
   final String department;
   final String email;
   final String phone;
+  final String cnic;
   final String status;
   final DateTime? createdAt;
 
@@ -28,6 +29,7 @@ class StudentRequest {
     required this.department,
     required this.email,
     required this.phone,
+    required this.cnic,
     this.status = StudentRequestStatus.pending,
     this.createdAt,
   });
@@ -39,6 +41,7 @@ class StudentRequest {
       'department': department,
       'email': email,
       'phone': phone,
+      'cnic': cnic,
       'status': status,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -53,6 +56,7 @@ class StudentRequest {
       department: map['department'] as String? ?? '',
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
+      cnic: map['cnic'] as String? ?? '',
       status: map['status'] as String? ?? StudentRequestStatus.pending,
       createdAt: ts is Timestamp ? ts.toDate() : null,
     );
@@ -66,6 +70,7 @@ class StudentRequest {
       department: department,
       email: email,
       phone: phone,
+      cnic: cnic,
       status: status ?? this.status,
       createdAt: createdAt,
     );

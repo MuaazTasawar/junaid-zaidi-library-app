@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -27,20 +27,34 @@ class KohaAuthService {
       : _client = client ?? http.Client(),
         _secureStorage = secureStorage ?? SecureStorageService();
 
+  // TEMP — hardcoded dev account so the app is reachable without a real
+  // Koha server or the mock server running. Checked before any network
+  // call is made. REMOVE before shipping — search this file for "TEMP —".
+  static const _devUsername = 'testuser';
+  static const _devPassword = 'test1234';
+  static const _devPatronId = '0000';
+
   /// Logs a student in against Koha, stores the resulting token via
   /// [SecureStorageService], and returns the patron ID on success.
   /// Throws [KohaAuthException] with a user-facing message on failure.
   Future<String> login({required String username, required String password}) async {
+    // TEMP — see the field comments above. This check runs before any
+    // network request, so it works with no server at all reachable.
+    if (username == _devUsername && password == _devPassword) {
+      await _secureStorage.saveSession(token: 'dev-hardcoded-token', patronId: _devPatronId);
+      return _devPatronId;
+    }
+
     final uri = Uri.parse(ApiConstants.kohaAuthEndpoint);
 
     late final http.Response response;
     try {
       response = await _client
           .post(
-        uri,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {'userid': username, 'password': password},
-      )
+            uri,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: {'userid': username, 'password': password},
+          )
           .timeout(ApiConstants.requestTimeout);
     } catch (_) {
       throw const KohaAuthException(

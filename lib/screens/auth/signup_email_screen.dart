@@ -51,6 +51,9 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
     if (email.isEmpty || !_emailPattern.hasMatch(email)) {
       setState(() => _emailError = 'Enter a valid email address.');
       isValid = false;
+    } else if (!email.toLowerCase().endsWith('@isbstudent.comsats.edu.pk')) {
+      setState(() => _emailError = 'Use your COMSATS email (must end with @isbstudent.comsats.edu.pk).');
+      isValid = false;
     }
     if (password.length < 6) {
       setState(() => _passwordError = 'Password must be at least 6 characters.');
@@ -152,7 +155,7 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
                   AppTextField(
                     label: 'Email',
                     controller: _emailController,
-                    placeholder: 'you@cuiatd.edu.pk',
+                    placeholder: 'you@isbstudent.comsats.edu.pk',
                     keyboardType: TextInputType.emailAddress,
                     prefixIcon: LucideIcons.mail,
                     errorText: _emailError,
