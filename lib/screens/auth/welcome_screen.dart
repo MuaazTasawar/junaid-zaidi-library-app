@@ -10,7 +10,9 @@ import '../../widgets/ui.dart';
 /// for already-approved accounts (Log in with Email) — Microsoft and
 /// Guest are still coming in later phases.
 class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
+  final VoidCallback onContinueAsGuest;
+
+  const WelcomeScreen({super.key, required this.onContinueAsGuest});
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +154,12 @@ class WelcomeScreen extends StatelessWidget {
                     label: 'Log in with Email',
                     variant: 'text',
                     onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.emailLogin),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(
+                    label: 'Continue as Guest',
+                    variant: 'text',
+                    onPressed: onContinueAsGuest,
                   ),
                 ],
               ),

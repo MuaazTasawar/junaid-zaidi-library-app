@@ -55,7 +55,8 @@ class _ProfileData {
 
 /// Profile screen: student hero (avatar/name/reg number) + every detail
 /// collected at signup. Loads from whichever backend actually holds the
-/// signed-in account's data — see _ProfileData above.
+/// signed-in account's data. Shows a Sign Up/Sign In prompt instead of
+/// any of that when the current session is guest (Phase 8).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -98,9 +99,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    // Neither Firebase path applied — must be a Koha-only session. No
-    // patron-details endpoint exists yet, so this is genuinely all the
-    // data available for this account type.
     final hasKohaSession = await _kohaAuth.isLoggedIn();
     if (hasKohaSession) {
       final patronId = await _secureStorage.readPatronId();
@@ -158,6 +156,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = useTheme(context);
+    final isGuest = AuthScope.of(context).isGuest;
+
+    if (isGuest) {
+      return ScreenContainer(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.intents.info.light.bg,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: Icon(LucideIcons.user, size: 32, color: colors.brand),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Heading(level: 4, text: "You're browsing as a guest", textAlign: TextAlign.center),
+              const SizedBox(height: AppSpacing.xs),
+              AppText(
+                'Sign up or log in to see your profile and borrow history.',
+                variant: 'bodyBase',
+                tone: 'secondary',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              AppButton(
+                label: 'Sign Up / Sign In',
+                onPressed: () => AuthScope.of(context).onLogout(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (_isLoading && _profile == null) {
       return ScreenContainer(

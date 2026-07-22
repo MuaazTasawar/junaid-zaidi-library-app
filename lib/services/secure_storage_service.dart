@@ -1,11 +1,13 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+﻿import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Wraps flutter_secure_storage for the one thing that must never sit in
-/// plain SharedPreferences: the Koha access token (SDS §9.9). Firebase
-/// state is disposable — this is the actual app session.
+/// Wraps flutter_secure_storage for the Koha access token (SDS §9.9) and,
+/// as of Phase 8, a simple guest-mode flag. Guest mode isn't sensitive
+/// data, but reusing the same storage instance avoids adding a second
+/// persistence mechanism (e.g. shared_preferences) for one boolean.
 class SecureStorageService {
   static const _tokenKey = 'koha_access_token';
   static const _patronIdKey = 'koha_patron_id';
+  static const _guestModeKey = 'guest_mode';
 
   final FlutterSecureStorage _storage;
 
@@ -29,5 +31,20 @@ class SecureStorageService {
   Future<void> clearSession() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _patronIdKey);
+  }
+
+  // ---- Guest mode (Phase 8) ----
+
+  Future<void> setGuestMode(bool value) async {
+    if (value) {
+      await _storage.write(key: _guestModeKey, value: 'true');
+    } else {
+      await _storage.delete(key: _guestModeKey);
+    }
+  }
+
+  Future<bool> isGuestMode() async {
+    final value = await _storage.read(key: _guestModeKey);
+    return value == 'true';
   }
 }
