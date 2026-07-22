@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../../navigation/auth_scope.dart';
 import '../../navigation/routes.dart';
 import '../../services/koha_auth_service.dart';
 import '../../theme/semantic/light.dart';
@@ -13,11 +14,10 @@ import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
 /// Decides between the auth flow and the app itself, based on whether a
-/// Koha session exists in secure storage (SDS Â§9.9 â€” Koha owns the real
-/// session, Firebase never does). Unlike Phases 2-4, session state is now
-/// held as real State (`_hasSession`) rather than a one-shot Future,
-/// because a successful login (Phase 5) has to flip the app over to
-/// RootShell immediately, without restarting.
+/// Koha session exists in secure storage (SDS Â§9.9 - Koha owns the real
+/// session, Firebase never does). Session state is held as real State
+/// (`_hasSession`) so both login (Phase 5) and logout (this change) can
+/// flip the app over live, with no restart needed either direction.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -43,9 +43,16 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   /// Passed down to LoginScreen. Flips the gate over to RootShell the
-  /// moment Koha login succeeds â€” no restart needed.
+  /// moment Koha login succeeds.
   void _handleAuthenticated() {
     setState(() => _hasSession = true);
+  }
+
+  /// Exposed to RootShell's whole subtree via AuthScope. Clears the
+  /// stored Koha token and flips the gate back to the signed-out flow.
+  Future<void> _handleLogout() async {
+    await _kohaAuth.logout();
+    if (mounted) setState(() => _hasSession = false);
   }
 
   Route<dynamic> _onGenerateAuthRoute(RouteSettings settings) {
@@ -78,7 +85,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (_hasSession!) {
-      return const RootShell();
+      return AuthScope(onLogout: _handleLogout, child: const RootShell());
     }
 
     return Navigator(

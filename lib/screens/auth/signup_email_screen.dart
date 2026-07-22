@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
@@ -10,8 +10,8 @@ import '../../widgets/ui.dart';
 final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
 
 /// Step 1 of registration: collects the email/password used only to prove
-/// the student controls their COMSATS email (SDS �9.9). This account is
-/// temporary � it exists purely to unlock the verification email, and
+/// the student controls their COMSATS email (SDS §9.9). This account is
+/// temporary — it exists purely to unlock the verification email, and
 /// gets discarded (signed out) once the request is submitted in Phase 4.
 class SignupEmailScreen extends StatefulWidget {
   const SignupEmailScreen({super.key});
@@ -100,6 +100,8 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = useTheme(context);
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: ScreenContainer(
@@ -113,42 +115,64 @@ class _SignupEmailScreenState extends State<SignupEmailScreen> {
               behavior: HitTestBehavior.opaque,
               child: Row(
                 children: [
-                  Icon(LucideIcons.arrow_left, size: 20, color: useTheme(context).icon),
+                  Icon(LucideIcons.arrow_left, size: 20, color: colors.icon),
                   const SizedBox(width: AppSpacing.xs),
                   AppText('Back', variant: 'bodyBase', tone: 'secondary'),
                 ],
               ),
             ),
+            const SizedBox(height: AppSpacing.xl),
+            Center(
+              child: Container(
+                width: 64,
+                height: 64,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.intents.success.light.bg,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: Icon(LucideIcons.user_plus, size: 28, color: colors.intents.success.light.fg),
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
-            Heading(text: 'Create your account', level: 3),
+            AppText('Create your account', variant: 'h3', textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.xs),
             AppText(
-              'Use your COMSATS email � we\'ll send a verification link before you can register.',
+              'Use your COMSATS email — we\'ll send a verification link before you can register.',
               variant: 'bodyBase',
               tone: 'secondary',
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
-            AppTextField(
-              label: 'Email',
-              controller: _emailController,
-              placeholder: 'you@cuiatd.edu.pk',
-              keyboardType: TextInputType.emailAddress,
-              prefixIcon: LucideIcons.mail,
-              errorText: _emailError,
+            AppCard(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    label: 'Email',
+                    controller: _emailController,
+                    placeholder: 'you@cuiatd.edu.pk',
+                    keyboardType: TextInputType.emailAddress,
+                    prefixIcon: LucideIcons.mail,
+                    errorText: _emailError,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    label: 'Password',
+                    controller: _passwordController,
+                    placeholder: 'At least 6 characters',
+                    obscureText: true,
+                    prefixIcon: LucideIcons.lock,
+                    errorText: _passwordError,
+                  ),
+                  if (_formError != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppText(_formError!, variant: 'bodySmall', tone: 'error'),
+                  ],
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Password',
-              controller: _passwordController,
-              placeholder: 'At least 6 characters',
-              obscureText: true,
-              prefixIcon: LucideIcons.lock,
-              errorText: _passwordError,
-            ),
-            if (_formError != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              AppText(_formError!, variant: 'bodySmall', tone: 'error'),
-            ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
               label: 'Continue',

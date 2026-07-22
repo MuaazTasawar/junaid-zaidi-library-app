@@ -79,15 +79,22 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
   Future<void> _handleSubmit() async {
     if (!_validate()) return;
 
-    final email = _authService.currentUser?.email;
+    final user = _authService.currentUser;
+    final email = user?.email;
     if (email == null || !_authService.isEmailVerified) {
       setState(() => _formError =
-          'Your email session expired � go back and verify your email again.');
+      'Your email session expired — go back and verify your email again.');
       return;
     }
 
     setState(() => _isSubmitting = true);
     try {
+      // user.reload() (back on the verify screen) updates the client-side
+      // User object, but the cached ID token's email_verified claim isn't
+      // refreshed by that alone — Firestore reads the token's claim, not
+      // the client-side flag, so force a fresh token before writing or
+      // firestore.rules rejects with permission-denied.
+      await user!.getIdToken(true);
       final request = StudentRequest(
         fullName: _fullNameController.text.trim(),
         registrationNumber: _regNumberController.text.trim(),
@@ -100,10 +107,13 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
 
       if (!mounted) return;
       setState(() => _isSubmitted = true);
-    } catch (_) {
-      setState(() =>
-          _formError = 'Could not submit your request. Check your connection and try again.');
-    } finally {
+    }
+  catch (e) {
+    debugPrint('Submit request failed: $e');
+    setState(() =>
+    _formError =
+    'Could not submit your request. Check your connection and try again.');
+  }finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }

@@ -5,7 +5,7 @@ class ApiConstants {
 
   // TODO(Muaaz): replace with your actual Koha base URL, e.g.
   // "https://library.comsats.edu.pk" — no trailing slash.
-  static const String kohaBaseUrl = 'https://REPLACE_WITH_YOUR_KOHA_URL';
+  static const String kohaBaseUrl = 'http://192.168.1.5:8080';
 
   static const String kohaAuthEndpoint = '$kohaBaseUrl/api/v1/auth/password';
 
