@@ -1,10 +1,16 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 
-/// Firebase Auth's ONLY job in this app is proving a student controls the
-/// email address they registered with (SDS §9.9). It never issues the
-/// real app session — that's KohaAuthService's job. Don't add
-/// sign-in-and-stay logic here; once verification succeeds, this account
-/// has done its job.
+import '../config/api_constants.dart';
+import '../models/student_request.dart';
+import 'firestore_service.dart';
+
+/// Firebase Auth now serves three purposes:
+///  1. Email verification for the legacy email/password signup path.
+///  2. That same email/password account, now ALSO usable as a real,
+///     persistent login IF the matching student_requests document's
+///     status is Approved (see signInWithEmailAndPasswordApproved).
+///  3. Microsoft OAuth (Azure AD) — domain-gated at sign-in, no
+///     Firestore lookup needed to trust the session.
 class FirebaseAuthService {
   final FirebaseAuth _auth;
 
@@ -14,9 +20,8 @@ class FirebaseAuthService {
 
   bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
 
-  /// Creates a temporary Firebase account for verification purposes only.
-  /// Throws [FirebaseAuthException] on failure (e.g. email-already-in-use,
-  /// weak-password) — callers should catch and show `e.message`.
+  // ---- Legacy email/password verification path ----
+
   Future<User> createTempAccount({
     required String email,
     required String password,
@@ -35,9 +40,6 @@ class FirebaseAuthService {
     return user;
   }
 
-  /// Sends the verification email to whichever account is currently
-  /// signed in. Standard sendEmailVerification() — deliberately NOT the
-  /// deprecated Dynamic-Links passwordless-sign-in flow.
   Future<void> sendVerificationEmail() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -49,9 +51,6 @@ class FirebaseAuthService {
     await user.sendEmailVerification();
   }
 
-  /// Re-fetches the user's record so `emailVerified` reflects whether
-  /// they've clicked the link yet. Call this when the student taps
-  /// "I've verified" on verify_email_screen.dart.
   Future<bool> checkEmailVerified() async {
     final user = _auth.currentUser;
     if (user == null) return false;
@@ -59,8 +58,118 @@ class FirebaseAuthService {
     return _auth.currentUser?.emailVerified ?? false;
   }
 
-  /// Signs out of the temporary Firebase account. Call once the
-  /// student_request document has been written — nothing after that
-  /// point needs a live Firebase session.
+  // ---- Microsoft OAuth ----
+
+  Future<User> signInWithMicrosoft() async {
+    final provider = MicrosoftAuthProvider();
+    provider.setCustomParameters({'tenant': ApiConstants.azureTenantId});
+
+    final credential = await _auth.signInWithProvider(provider);
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-user',
+        message: 'Microsoft sign-in did not return a user.',
+      );
+    }
+
+    final email = user.email?.toLowerCase() ?? '';
+    if (!email.endsWith(ApiConstants.studentEmailDomain)) {
+      await _auth.signOut();
+      throw StateError(
+        'That Microsoft account isn\'t a COMSATS student account '
+        '(must end with ${ApiConstants.studentEmailDomain}).',
+      );
+    }
+
+    return user;
+  }
+
+  String extractRegistrationNumber(User user) {
+    final fromEmail = RegExp(r'^([a-z]{2}\d{2}-[a-z]{3}-\d{3})', caseSensitive: false)
+        .firstMatch(user.email ?? '')
+        ?.group(1);
+    if (fromEmail != null) return fromEmail.toUpperCase();
+
+    final fromName = RegExp(r'\(([A-Z]{2}\d{2}-[A-Z]{3}-\d{3})\)')
+        .firstMatch(user.displayName ?? '')
+        ?.group(1);
+    return fromName ?? '';
+  }
+
+  String extractFullName(User user) {
+    final raw = user.displayName ?? '';
+    return raw.replaceFirst(RegExp(r'^\([A-Z]{2}\d{2}-[A-Z]{3}-\d{3}\)\s*'), '').trim();
+  }
+
+  // ---- Email/password login gated on student_requests approval ----
+  // Added per updated spec: the temp account created during signup
+  // becomes a real, persistent login IF the librarian has since set the
+  // matching student_requests document's status to Approved. This is a
+  // real departure from "Firebase never issues the real session" —
+  // directed explicitly, not an unprompted reinterpretation.
+
+  /// Signs in with email/password, then checks the matching
+  /// student_requests document. Throws [StateError] with a user-facing
+  /// message (and signs back out) if there's no request, or it isn't
+  /// Approved — so a Pending or Rejected account can authenticate
+  /// against Firebase but is still correctly denied entry to the app.
+  Future<User> signInWithEmailAndPasswordApproved({
+    required String email,
+    required String password,
+    required FirestoreService firestoreService,
+  }) async {
+    final credential = await _auth.signInWithEmailAndPassword(email: email, password: password);
+    final user = credential.user;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-user', message: 'Sign-in did not return a user.');
+    }
+
+    final request = await firestoreService.getLatestRequestForEmail(email);
+    if (request == null) {
+      await _auth.signOut();
+      throw StateError('No registration request found for this email.');
+    }
+
+    switch (request.status) {
+      case StudentRequestStatus.approved:
+        return user;
+      case StudentRequestStatus.rejected:
+        await _auth.signOut();
+        throw StateError('Your registration request was rejected.');
+      default:
+        await _auth.signOut();
+        throw StateError('Your registration is still pending librarian approval.');
+    }
+  }
+
+  /// Used by AuthGate on boot to decide whether an already-signed-in
+  /// Firebase user (from a previous app launch) still counts as a valid
+  /// session. Microsoft accounts are valid by construction (domain-gated
+  /// at sign-in, Phase 7). Email/password accounts are re-checked
+  /// against Firestore every time — if their request is no longer
+  /// Approved (e.g. a librarian reversed a decision), this signs them
+  /// out automatically rather than leaving a stale session.
+  Future<bool> hasApprovedRequestSession(FirestoreService firestoreService) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final isMicrosoft = user.providerData.any((p) => p.providerId == 'microsoft.com');
+    if (isMicrosoft) return true;
+
+    final email = user.email;
+    if (email == null) {
+      await _auth.signOut();
+      return false;
+    }
+
+    final request = await firestoreService.getLatestRequestForEmail(email);
+    if (request?.status == StudentRequestStatus.approved) {
+      return true;
+    }
+    await _auth.signOut();
+    return false;
+  }
+
   Future<void> signOut() => _auth.signOut();
 }

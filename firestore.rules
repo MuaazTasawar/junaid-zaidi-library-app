@@ -13,5 +13,25 @@ service cloud.firestore {
 
       allow update, delete: if false;
     }
+
+    // Added Phase 7 — Microsoft OAuth onboarding profiles. One document
+    // per Firebase uid, no approval concept: a document existing at all
+    // means onboarding is complete. The domain check here is the
+    // server-side backstop for the client-side check in
+    // FirebaseAuthService.signInWithMicrosoft — don't rely on the client
+    // check alone.
+    match /users/{userId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.auth.token.email.matches('.*@isbstudent[.]comsats[.]edu[.]pk$');
+
+      allow update: if request.auth != null
+                    && request.auth.uid == userId;
+
+      allow delete: if false;
+    }
   }
 }

@@ -5,11 +5,10 @@ import '../../theme/theme.dart';
 import '../../theme/tokens/colors.dart';
 import '../../widgets/ui.dart';
 
-/// First screen a signed-out student sees. Redesigned with a brand
-/// gradient hero (top) overlapped by a rounded white sheet (bottom)
-/// holding the Log In / Create Account choice — deliberately doesn't wrap
-/// in its own Scaffold since AuthGate's nested Navigator already provides
-/// one per route.
+/// First screen a signed-out student sees. Three ways in now: Koha
+/// (Log In), the new signup flow (Create Account), and email/password
+/// for already-approved accounts (Log in with Email) — Microsoft and
+/// Guest are still coming in later phases.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -147,6 +146,12 @@ class WelcomeScreen extends StatelessWidget {
                     label: 'Create Account',
                     variant: 'secondary',
                     onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.signupEmail),
+                  ),
+                  const SizedBox(height: AppSpacing.ms),
+                  AppButton(
+                    label: 'Log in with Email',
+                    variant: 'text',
+                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.emailLogin),
                   ),
                 ],
               ),

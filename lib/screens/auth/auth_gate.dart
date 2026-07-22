@@ -2,22 +2,30 @@
 
 import '../../navigation/auth_scope.dart';
 import '../../navigation/routes.dart';
+import '../../services/firebase_auth_service.dart';
+import '../../services/firestore_service.dart';
 import '../../services/koha_auth_service.dart';
 import '../../theme/semantic/light.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
+import 'email_login_screen.dart';
 import 'login_screen.dart';
 import 'signup_email_screen.dart';
 import 'signup_form_screen.dart';
 import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
-/// Decides between the auth flow and the app itself, based on whether a
-/// Koha session exists in secure storage (SDS Â§9.9 - Koha owns the real
-/// session, Firebase never does). Session state is held as real State
-/// (`_hasSession`) so both login (Phase 5) and logout (this change) can
-/// flip the app over live, with no restart needed either direction.
+/// Decides between the auth flow and the app itself. A session is now
+/// "real" via any of three independent paths, checked together on boot:
+///  1. Koha (secure-storage token) — unchanged since Phase 5.
+///  2. Firebase email/password, gated on the matching student_requests
+///     document's status being Approved (added this change).
+///  3. Firebase Microsoft OAuth (Phase 7) — valid by construction, since
+///     it's domain-gated at sign-in.
+/// FirebaseAuthService.hasApprovedRequestSession() handles telling (2)
+/// and (3) apart and re-validating (2) against Firestore on every boot,
+/// so a librarian reversing an approval takes effect next launch.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -27,6 +35,8 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   final _kohaAuth = KohaAuthService();
+  final _firebaseAuth = FirebaseAuthService();
+  final _firestoreService = FirestoreService();
 
   /// null = still checking on boot, true/false = known session state.
   bool? _hasSession;
@@ -38,20 +48,23 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _checkSession() async {
-    final hasSession = await _kohaAuth.isLoggedIn();
-    if (mounted) setState(() => _hasSession = hasSession);
+    final hasKohaSession = await _kohaAuth.isLoggedIn();
+    final hasFirebaseSession = await _firebaseAuth.hasApprovedRequestSession(_firestoreService);
+    if (mounted) setState(() => _hasSession = hasKohaSession || hasFirebaseSession);
   }
 
-  /// Passed down to LoginScreen. Flips the gate over to RootShell the
-  /// moment Koha login succeeds.
+  /// Passed down to LoginScreen and EmailLoginScreen. Flips the gate over
+  /// to RootShell the moment either kind of login succeeds.
   void _handleAuthenticated() {
     setState(() => _hasSession = true);
   }
 
-  /// Exposed to RootShell's whole subtree via AuthScope. Clears the
-  /// stored Koha token and flips the gate back to the signed-out flow.
+  /// Exposed to RootShell's whole subtree via AuthScope. Clears both
+  /// possible session types — harmless to call the one that wasn't
+  /// actually active — and flips the gate back to the signed-out flow.
   Future<void> _handleLogout() async {
     await _kohaAuth.logout();
+    await _firebaseAuth.signOut();
     if (mounted) setState(() => _hasSession = false);
   }
 
@@ -62,6 +75,8 @@ class _AuthGateState extends State<AuthGate> {
         page = const WelcomeScreen();
       case AuthRoutes.login:
         page = LoginScreen(onLoginSuccess: _handleAuthenticated);
+      case AuthRoutes.emailLogin:
+        page = EmailLoginScreen(onLoginSuccess: _handleAuthenticated);
       case AuthRoutes.signupEmail:
         page = const SignupEmailScreen();
       case AuthRoutes.verifyEmail:
