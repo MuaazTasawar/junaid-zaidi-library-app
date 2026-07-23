@@ -103,17 +103,12 @@ class FirebaseAuthService {
   }
 
   // ---- Email/password login gated on student_requests approval ----
-  // Added per updated spec: the temp account created during signup
-  // becomes a real, persistent login IF the librarian has since set the
-  // matching student_requests document's status to Approved. This is a
-  // real departure from "Firebase never issues the real session" —
-  // directed explicitly, not an unprompted reinterpretation.
 
   /// Signs in with email/password, then checks the matching
   /// student_requests document. Throws [StateError] with a user-facing
-  /// message (and signs back out) if there's no request, or it isn't
-  /// Approved — so a Pending or Rejected account can authenticate
-  /// against Firebase but is still correctly denied entry to the app.
+  /// message (and signs back out) if there's no request, the request
+  /// isn't Approved, or the Firestore lookup itself fails — those three
+  /// cases are kept distinct rather than collapsed into one message.
   Future<User> signInWithEmailAndPasswordApproved({
     required String email,
     required String password,
@@ -125,7 +120,18 @@ class FirebaseAuthService {
       throw FirebaseAuthException(code: 'no-user', message: 'Sign-in did not return a user.');
     }
 
-    final request = await firestoreService.getLatestRequestForEmail(email);
+    StudentRequest? request;
+    try {
+      request = await firestoreService.getLatestRequestForEmail(email);
+    } catch (_) {
+      // The query itself failed (e.g. missing Firestore index, offline) —
+      // distinct from "queried fine, no request exists" below. Collapsing
+      // these into one message would hide real problems behind a
+      // misleading "no request found" for what's actually a backend issue.
+      await _auth.signOut();
+      throw StateError('Could not check your registration status. Try again in a moment.');
+    }
+
     if (request == null) {
       await _auth.signOut();
       throw StateError('No registration request found for this email.');
@@ -144,12 +150,9 @@ class FirebaseAuthService {
   }
 
   /// Used by AuthGate on boot to decide whether an already-signed-in
-  /// Firebase user (from a previous app launch) still counts as a valid
-  /// session. Microsoft accounts are valid by construction (domain-gated
-  /// at sign-in, Phase 7). Email/password accounts are re-checked
-  /// against Firestore every time — if their request is no longer
-  /// Approved (e.g. a librarian reversed a decision), this signs them
-  /// out automatically rather than leaving a stale session.
+  /// Firebase user still counts as a valid session. Microsoft accounts
+  /// are valid by construction. Email/password accounts are re-checked
+  /// against Firestore every time.
   Future<bool> hasApprovedRequestSession(FirestoreService firestoreService) async {
     final user = _auth.currentUser;
     if (user == null) return false;
@@ -163,12 +166,23 @@ class FirebaseAuthService {
       return false;
     }
 
-    final request = await firestoreService.getLatestRequestForEmail(email);
-    if (request?.status == StudentRequestStatus.approved) {
-      return true;
+    // A Firestore failure here (missing index, offline, etc.) must never
+    // propagate uncaught — AuthGate awaits this on every boot, and an
+    // unhandled exception here previously left it stuck on the loading
+    // spinner forever, since the setState() after it never ran. Fail
+    // safe: treat any lookup failure as "not authenticated" rather than
+    // hanging.
+    try {
+      final request = await firestoreService.getLatestRequestForEmail(email);
+      if (request?.status == StudentRequestStatus.approved) {
+        return true;
+      }
+      await _auth.signOut();
+      return false;
+    } catch (_) {
+      await _auth.signOut();
+      return false;
     }
-    await _auth.signOut();
-    return false;
   }
 
   Future<void> signOut() => _auth.signOut();

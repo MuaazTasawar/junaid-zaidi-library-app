@@ -2,6 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    match /admins/{adminId} {
+      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow write: if false;
+    }
+
     match /student_requests/{requestId} {
       allow create: if request.auth != null
                     && request.auth.token.email_verified == true
@@ -9,17 +14,16 @@ service cloud.firestore {
                     && request.resource.data.status == 'Pending';
 
       allow read: if request.auth != null
-                  && resource.data.email == request.auth.token.email;
+                  && (resource.data.email == request.auth.token.email
+                      || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
 
-      allow update, delete: if false;
+      allow update: if request.auth != null
+                    && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      allow delete: if false;
     }
 
-    // Added Phase 7 — Microsoft OAuth onboarding profiles. One document
-    // per Firebase uid, no approval concept: a document existing at all
-    // means onboarding is complete. The domain check here is the
-    // server-side backstop for the client-side check in
-    // FirebaseAuthService.signInWithMicrosoft — don't rely on the client
-    // check alone.
     match /users/{userId} {
       allow read: if request.auth != null
                   && request.auth.uid == userId;

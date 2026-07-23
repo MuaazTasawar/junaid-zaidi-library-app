@@ -1,6 +1,3 @@
-﻿/// Route names for the nested Navigator that lives inside the "More"
-/// bottom tab (mirrors the original app's `app/(tabs)/more/*` expo-router
-/// stack).
 class MoreRoutes {
   const MoreRoutes._();
 
@@ -15,14 +12,13 @@ class MoreRoutes {
   static const String aboutFloorPlan = '/more/about/floor-plan';
 }
 
-/// Route names for the nested Navigator that AuthGate owns. Screens push
-/// these by name rather than by direct widget reference, so each screen
-/// file stays independently compilable regardless of build order.
+/// Route names for the nested Navigator that AuthGate owns. Koha
+/// username/password login was removed (see WelcomeScreen) — every
+/// account authenticates by email now.
 class AuthRoutes {
   const AuthRoutes._();
 
   static const String welcome = '/auth/welcome';
-  static const String login = '/auth/login';
   static const String emailLogin = '/auth/login/email';
   static const String signupEmail = '/auth/signup/email';
   static const String verifyEmail = '/auth/signup/verify-email';

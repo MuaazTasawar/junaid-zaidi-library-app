@@ -1,14 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../navigation/routes.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens/colors.dart';
 import '../../widgets/ui.dart';
 
-/// First screen a signed-out student sees. Three ways in now: Koha
-/// (Log In), the new signup flow (Create Account), and email/password
-/// for already-approved accounts (Log in with Email) — Microsoft and
-/// Guest are still coming in later phases.
+/// First screen a signed-out student sees. Koha username/password login
+/// was removed here — every account in this app authenticates by email,
+/// so a "username" field never matched reality. Three ways in now:
+/// Log in with Email (primary — the real returning-user path), Create
+/// Account, and Continue as Guest.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onContinueAsGuest;
 
@@ -139,21 +140,15 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   AppButton(
-                    label: 'Log In',
+                    label: 'Log in with Email',
                     variant: 'primary',
-                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.login),
+                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.emailLogin),
                   ),
                   const SizedBox(height: AppSpacing.ms),
                   AppButton(
                     label: 'Create Account',
                     variant: 'secondary',
                     onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.signupEmail),
-                  ),
-                  const SizedBox(height: AppSpacing.ms),
-                  AppButton(
-                    label: 'Log in with Email',
-                    variant: 'text',
-                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.emailLogin),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   AppButton(

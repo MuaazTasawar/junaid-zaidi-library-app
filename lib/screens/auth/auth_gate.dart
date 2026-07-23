@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../navigation/auth_scope.dart';
 import '../../navigation/routes.dart';
@@ -11,7 +11,6 @@ import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
 import 'email_login_screen.dart';
-import 'login_screen.dart';
 import 'signup_email_screen.dart';
 import 'signup_form_screen.dart';
 import 'verify_email_screen.dart';
@@ -92,8 +91,6 @@ class _AuthGateState extends State<AuthGate> {
     switch (settings.name) {
       case AuthRoutes.welcome:
         page = WelcomeScreen(onContinueAsGuest: _handleContinueAsGuest);
-      case AuthRoutes.login:
-        page = LoginScreen(onLoginSuccess: _handleAuthenticated);
       case AuthRoutes.emailLogin:
         page = EmailLoginScreen(onLoginSuccess: _handleAuthenticated);
       case AuthRoutes.signupEmail:
