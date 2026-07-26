@@ -14,8 +14,18 @@ service cloud.firestore {
     // functions/index.js. No client, including the admin dashboard, ever
     // gets a decryption capability.
     match /student_requests/{requestId} {
+      // Corrected in Phase 1: the Updated Authentication Workflow
+      // creates NO real Firebase account for the student pre-approval,
+      // so there is no request.auth.token.email to match against here —
+      // the write comes from a throwaway anonymous session (see
+      // FirestoreService.submitStudentRequest). request.auth != null
+      // still gives basic abuse resistance (Firebase Auth rate-limits
+      // anonymous sign-ins per device); everything else is validated by
+      // shape/format instead of by identity, since identity genuinely
+      // isn't verified until a librarian reviews the request by hand.
       allow create: if request.auth != null
-                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.email is string
+                    && request.resource.data.email.matches('.*@isbstudent[.]comsats[.]edu[.]pk$')
                     && request.resource.data.status == 'Pending'
                     && request.resource.data.encryptedPassword is string
                     && request.resource.data.encryptedPassword.size() > 0;

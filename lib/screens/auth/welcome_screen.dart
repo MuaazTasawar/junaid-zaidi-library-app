@@ -6,9 +6,9 @@ import '../../theme/tokens/colors.dart';
 import '../../widgets/ui.dart';
 
 /// First screen a signed-out student sees. Koha username/password login
-/// was removed here — every account in this app authenticates by email,
+/// was removed here â€” every account in this app authenticates by email,
 /// so a "username" field never matched reality. Three ways in now:
-/// Log in with Email (primary — the real returning-user path), Create
+/// Log in with Email (primary â€” the real returning-user path), Create
 /// Account, and Continue as Guest.
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onContinueAsGuest;
@@ -148,7 +148,7 @@ class WelcomeScreen extends StatelessWidget {
                   AppButton(
                     label: 'Create Account',
                     variant: 'secondary',
-                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.signupEmail),
+                    onPressed: () => Navigator.of(context).pushNamed(AuthRoutes.signupForm),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   AppButton(

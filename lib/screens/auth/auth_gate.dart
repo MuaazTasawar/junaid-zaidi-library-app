@@ -11,15 +11,12 @@ import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 import '../root_shell.dart';
 import 'email_login_screen.dart';
-import 'signup_email_screen.dart';
 import 'signup_form_screen.dart';
-import 'verify_email_screen.dart';
 import 'welcome_screen.dart';
 
 enum _AuthState { loading, authenticated, guest, signedOut }
 
-/// Decides between the auth flow and the app itself. Four states now,
-/// not three:
+/// Decides between the auth flow and the app itself. Four states:
 ///  - loading: still checking on boot.
 ///  - authenticated: a real session exists — Koha, Firebase email
 ///    (Approved), or Firebase Microsoft. See
@@ -30,6 +27,12 @@ enum _AuthState { loading, authenticated, guest, signedOut }
 ///    guest-mode flag) — a guest isn't re-prompted through Welcome every
 ///    launch.
 ///  - signedOut: none of the above — shows the Welcome flow.
+///
+/// Updated Authentication Workflow, Phase 1: signupEmail and
+/// verifyEmail routes/screens were removed from the route table below —
+/// registration is now a single screen (signup_form_screen.dart) with
+/// no pre-approval Firebase account. Session/login logic itself
+/// (Firebase+Koha dual auth) is reworked separately in Phase 3.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -93,11 +96,6 @@ class _AuthGateState extends State<AuthGate> {
         page = WelcomeScreen(onContinueAsGuest: _handleContinueAsGuest);
       case AuthRoutes.emailLogin:
         page = EmailLoginScreen(onLoginSuccess: _handleAuthenticated);
-      case AuthRoutes.signupEmail:
-        page = const SignupEmailScreen();
-      case AuthRoutes.verifyEmail:
-        final email = settings.arguments as String? ?? '';
-        page = VerifyEmailScreen(email: email);
       case AuthRoutes.signupForm:
         page = const SignupFormScreen();
       default:

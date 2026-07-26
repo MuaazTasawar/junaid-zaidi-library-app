@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../navigation/routes.dart';
@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
               variant: 'text',
               onPressed: _isSubmitting
                   ? null
-                  : () => Navigator.of(context).pushNamed(AuthRoutes.signupEmail),
+                  : () => Navigator.of(context).pushNamed(AuthRoutes.signupForm),
             ),
           ],
         ),

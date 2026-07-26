@@ -12,15 +12,19 @@ class MoreRoutes {
   static const String aboutFloorPlan = '/more/about/floor-plan';
 }
 
-/// Route names for the nested Navigator that AuthGate owns. Koha
-/// username/password login was removed (see WelcomeScreen) — every
-/// account authenticates by email now.
+/// Route names for the nested Navigator that AuthGate owns.
+///
+/// Updated Authentication Workflow, Phase 1: signupEmail and
+/// verifyEmail were removed here. The old three-screen signup
+/// (email -> verify -> form) belonged to the pre-approval-gated design
+/// where a temporary Firebase account existed to prove email ownership.
+/// The workflow this app now implements does registration in one
+/// screen with format-only validation and no account of any kind until
+/// a librarian approves the request — see signup_form_screen.dart.
 class AuthRoutes {
   const AuthRoutes._();
 
   static const String welcome = '/auth/welcome';
   static const String emailLogin = '/auth/login/email';
-  static const String signupEmail = '/auth/signup/email';
-  static const String verifyEmail = '/auth/signup/verify-email';
   static const String signupForm = '/auth/signup/form';
 }

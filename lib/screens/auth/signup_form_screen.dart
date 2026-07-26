@@ -4,18 +4,30 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../models/student_request.dart';
 import '../../navigation/routes.dart';
-import '../../services/firebase_auth_service.dart';
+import '../../services/crypto_service.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 
 final _cnicPattern = RegExp(r'^\d{5}-\d{7}-\d$');
+final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
+// Password policy (Updated Authentication Workflow, Phase 1 / Step 1:
+// "Password meets the required policy"): at least 8 characters, with at
+// least one letter and one digit. The doc names the requirement but not
+// the exact rule, so this is a documented assumption, not a literal
+// quote from it — tighten it here if COMSATS gives you a stricter spec.
+final _passwordHasLetter = RegExp(r'[A-Za-z]');
+final _passwordHasDigit = RegExp(r'\d');
 
-/// Step 3 of registration: the student's Firebase email is now verified,
-/// so this form writes a `student_requests` document (SDS §6.3) for a
-/// librarian to review. Once the write succeeds, the temp Firebase
-/// account is signed out — per SDS §9.9, Firebase's job ends here, it
-/// never becomes the real session.
+/// The full registration screen (Updated Authentication Workflow, Phase
+/// 1). Unlike the old three-screen flow (email -> verify -> form), there
+/// is no separate email-verification step and no temporary Firebase
+/// account here — the doc's Step 1 only validates field FORMAT (a real
+/// COMSATS domain, a matching password/confirm pair), not email
+/// ownership. Submitting writes a single Pending student_requests
+/// document with an RSA-encrypted password (Step 2) and nothing else —
+/// no Firebase account and no Koha patron exist until a librarian
+/// approves it (see functions/index.js).
 class SignupFormScreen extends StatefulWidget {
   const SignupFormScreen({super.key});
 
@@ -27,15 +39,21 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
   final _fullNameController = TextEditingController();
   final _regNumberController = TextEditingController();
   final _departmentController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _cnicController = TextEditingController();
 
-  final _authService = FirebaseAuthService();
+  final _cryptoService = CryptoService();
   final _firestoreService = FirestoreService();
 
   String? _fullNameError;
   String? _regNumberError;
   String? _departmentError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
   String? _phoneError;
   String? _cnicError;
   String? _formError;
@@ -48,6 +66,9 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
     _fullNameController.dispose();
     _regNumberController.dispose();
     _departmentController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _phoneController.dispose();
     _cnicController.dispose();
     super.dispose();
@@ -58,12 +79,16 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       _fullNameError = null;
       _regNumberError = null;
       _departmentError = null;
+      _emailError = null;
+      _passwordError = null;
+      _confirmPasswordError = null;
       _phoneError = null;
       _cnicError = null;
       _formError = null;
     });
 
     var isValid = true;
+
     if (_fullNameController.text.trim().isEmpty) {
       setState(() => _fullNameError = 'Enter your full name.');
       isValid = false;
@@ -76,47 +101,63 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
       setState(() => _departmentError = 'Enter your department.');
       isValid = false;
     }
-    if (_phoneController.text.trim().length < 7) {
+
+    final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty || !_emailPattern.hasMatch(email)) {
+      setState(() => _emailError = 'Enter a valid email address.');
+      isValid = false;
+    } else if (!email.endsWith('@isbstudent.comsats.edu.pk')) {
+      setState(() =>
+          _emailError = 'Use your COMSATS Outlook email (must end with @isbstudent.comsats.edu.pk).');
+      isValid = false;
+    }
+
+    final password = _passwordController.text;
+    if (password.length < 8 ||
+        !_passwordHasLetter.hasMatch(password) ||
+        !_passwordHasDigit.hasMatch(password)) {
+      setState(() =>
+          _passwordError = 'At least 8 characters, with a mix of letters and numbers.');
+      isValid = false;
+    }
+    if (_confirmPasswordController.text != password) {
+      setState(() => _confirmPasswordError = 'Passwords do not match.');
+      isValid = false;
+    }
+
+    // Phone is optional per the workflow doc — only validate its shape
+    // if the student actually entered something.
+    final phone = _phoneController.text.trim();
+    if (phone.isNotEmpty && phone.length < 7) {
       setState(() => _phoneError = 'Enter a valid phone number.');
       isValid = false;
     }
+
     if (!_cnicPattern.hasMatch(_cnicController.text.trim())) {
       setState(() => _cnicError = 'Enter your CNIC as xxxxx-xxxxxxx-x.');
       isValid = false;
     }
+
     return isValid;
   }
 
   Future<void> _handleSubmit() async {
     if (!_validate()) return;
 
-    final user = _authService.currentUser;
-    final email = user?.email?.trim().toLowerCase();
-    if (email == null || !_authService.isEmailVerified) {
-      setState(() => _formError =
-          'Your email session expired — go back and verify your email again.');
-      return;
-    }
-
     setState(() => _isSubmitting = true);
     try {
-      // user.reload() (back on the verify screen) updates the client-side
-      // User object, but the cached ID token's email_verified claim isn't
-      // refreshed by that alone — Firestore reads the token's claim, not
-      // the client-side flag, so force a fresh token before writing or
-      // firestore.rules rejects with permission-denied.
-      await user!.getIdToken(true);
+      final encryptedPassword = _cryptoService.encryptPassword(_passwordController.text);
 
       final request = StudentRequest(
         fullName: _fullNameController.text.trim(),
         registrationNumber: _regNumberController.text.trim(),
         department: _departmentController.text.trim(),
-        email: email,
+        email: _emailController.text.trim().toLowerCase(),
         phone: _phoneController.text.trim(),
         cnic: _cnicController.text.trim(),
+        encryptedPassword: encryptedPassword,
       );
       await _firestoreService.submitStudentRequest(request);
-      await _authService.signOut();
 
       if (!mounted) return;
       setState(() => _isSubmitted = true);
@@ -146,10 +187,22 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppSpacing.md),
-            Heading(text: 'Registration details', level: 3),
+            GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Icon(LucideIcons.arrow_left, size: 20),
+                  const SizedBox(width: AppSpacing.xs),
+                  AppText('Back', variant: 'bodyBase', tone: 'secondary'),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Heading(text: 'Create your account', level: 3),
             const SizedBox(height: AppSpacing.xs),
             AppText(
-              'Your email is verified. Fill this in and a librarian will review your request.',
+              'Fill this in and a librarian will review your request before you can log in.',
               variant: 'bodyBase',
               tone: 'secondary',
             ),
@@ -179,7 +232,34 @@ class _SignupFormScreenState extends State<SignupFormScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
-              label: 'Phone number',
+              label: 'COMSATS Outlook email',
+              controller: _emailController,
+              placeholder: 'you@isbstudent.comsats.edu.pk',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: LucideIcons.mail,
+              errorText: _emailError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Password',
+              controller: _passwordController,
+              placeholder: 'At least 8 characters, letters + numbers',
+              obscureText: true,
+              prefixIcon: LucideIcons.lock,
+              errorText: _passwordError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Confirm password',
+              controller: _confirmPasswordController,
+              placeholder: 'Re-enter your password',
+              obscureText: true,
+              prefixIcon: LucideIcons.lock,
+              errorText: _confirmPasswordError,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Phone number (optional)',
               controller: _phoneController,
               placeholder: 'e.g. 03001234567',
               keyboardType: TextInputType.phone,
@@ -272,7 +352,7 @@ class _SubmittedView extends StatelessWidget {
           Heading(text: 'Request submitted', level: 3, textAlign: TextAlign.center),
           const SizedBox(height: AppSpacing.xs),
           AppText(
-            'A librarian will review your details. You\'ll be able to log in once your account is approved.',
+            'Your registration request has been submitted successfully. Please wait for administrator approval.',
             variant: 'bodyBase',
             tone: 'secondary',
             textAlign: TextAlign.center,
