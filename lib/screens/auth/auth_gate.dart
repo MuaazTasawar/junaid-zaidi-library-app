@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../navigation/auth_scope.dart';
 import '../../navigation/routes.dart';
 import '../../services/firebase_auth_service.dart';
-import '../../services/firestore_service.dart';
 import '../../services/koha_auth_service.dart';
 import '../../services/secure_storage_service.dart';
 import '../../theme/semantic/light.dart';
@@ -18,21 +17,21 @@ enum _AuthState { loading, authenticated, guest, signedOut }
 
 /// Decides between the auth flow and the app itself. Four states:
 ///  - loading: still checking on boot.
-///  - authenticated: a real session exists — Koha, Firebase email
-///    (Approved), or Firebase Microsoft. See
-///    FirebaseAuthService.hasApprovedRequestSession for how (2) and (3)
-///    are told apart and re-validated.
+///  - authenticated: BOTH a Koha session AND a Firebase session exist —
+///    see _checkSession below for why "both" is required, not either.
 ///  - guest: no account, browsing anonymously. Persists across restarts
 ///    the same way a real session does (see SecureStorageService's
 ///    guest-mode flag) — a guest isn't re-prompted through Welcome every
 ///    launch.
 ///  - signedOut: none of the above — shows the Welcome flow.
 ///
-/// Updated Authentication Workflow, Phase 1: signupEmail and
-/// verifyEmail routes/screens were removed from the route table below —
-/// registration is now a single screen (signup_form_screen.dart) with
-/// no pre-approval Firebase account. Session/login logic itself
-/// (Firebase+Koha dual auth) is reworked separately in Phase 3.
+/// Updated Authentication Workflow, Phase 3: login_screen.dart (the old
+/// Koha-username-only screen) was deleted here, not just left unrouted —
+/// it was already dead code with zero callers before this phase (grep
+/// confirms nothing referenced it outside itself), and its username-only
+/// design directly conflicts with the dual email+password login the
+/// workflow doc specifies. EmailLoginScreen is now the one and only
+/// login path, doing both Firebase and Koha auth together.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -43,7 +42,6 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   final _kohaAuth = KohaAuthService();
   final _firebaseAuth = FirebaseAuthService();
-  final _firestoreService = FirestoreService();
   final _secureStorage = SecureStorageService();
 
   _AuthState _state = _AuthState.loading;
@@ -54,20 +52,34 @@ class _AuthGateState extends State<AuthGate> {
     _checkSession();
   }
 
+  /// Updated Authentication Workflow, Phase 3 (Step 15's dual-login
+  /// requirement extends to session restore, not just the login
+  /// moment): a valid restored session requires BOTH the Koha token
+  /// (secure storage) AND a live Firebase session (persisted natively
+  /// by the Firebase SDK) to be present. If only one is found —
+  /// something crashed mid-login, storage was cleared by hand, etc —
+  /// the safest move is to clear both and force a clean re-login rather
+  /// than silently trusting a half-authenticated state.
   Future<void> _checkSession() async {
     final hasKohaSession = await _kohaAuth.isLoggedIn();
-    final hasFirebaseSession = await _firebaseAuth.hasApprovedRequestSession(_firestoreService);
-    if (hasKohaSession || hasFirebaseSession) {
+    final hasFirebaseSession = _firebaseAuth.currentUser != null;
+
+    if (hasKohaSession && hasFirebaseSession) {
       if (mounted) setState(() => _state = _AuthState.authenticated);
       return;
+    }
+
+    if (hasKohaSession || hasFirebaseSession) {
+      await _kohaAuth.logout();
+      await _firebaseAuth.signOut();
     }
 
     final isGuest = await _secureStorage.isGuestMode();
     if (mounted) setState(() => _state = isGuest ? _AuthState.guest : _AuthState.signedOut);
   }
 
-  /// Passed to LoginScreen and EmailLoginScreen. Flips the gate over to
-  /// RootShell the moment either kind of login succeeds.
+  /// Passed to EmailLoginScreen. Flips the gate over to RootShell once
+  /// both Firebase and Koha login have succeeded.
   void _handleAuthenticated() {
     setState(() => _state = _AuthState.authenticated);
   }
@@ -82,6 +94,8 @@ class _AuthGateState extends State<AuthGate> {
   /// clearing all three possible states (Koha token, Firebase session,
   /// guest flag) is harmless for whichever ones weren't actually active,
   /// and correctly returns either a real user or a guest to Welcome.
+  /// Updated Authentication Workflow, Phase 3 (Steps 17-19): logout
+  /// clears BOTH sessions together, never just one.
   Future<void> _handleLogout() async {
     await _kohaAuth.logout();
     await _firebaseAuth.signOut();

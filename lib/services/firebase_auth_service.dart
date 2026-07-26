@@ -11,42 +11,61 @@ class FirebaseAuthService {
 
   User? get currentUser => _auth.currentUser;
 
-  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
-
-  Future<User> createTempAccount({
+  /// Updated Authentication Workflow, Phase 3 (Steps 12-15): the real,
+  /// day-to-day login. No separate "approved" check is needed here the
+  /// way the old signInWithEmailAndPasswordApproved() did one — the
+  /// Cloud Function (functions/index.js) only ever creates a Firebase
+  /// account AFTER a librarian approves the student, so a Firebase
+  /// account existing at all already implies approval. If sign-in fails
+  /// with user-not-found, describeSignInFailure() below turns that into
+  /// a friendlier "still pending" / "rejected" / "no such account"
+  /// message by checking student_requests instead.
+  Future<User> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
+    final credential = await _auth.signInWithEmailAndPassword(
+      email: email.trim().toLowerCase(),
       password: password,
     );
     final user = credential.user;
     if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-user',
-        message: 'Account creation did not return a user.',
-      );
+      throw FirebaseAuthException(code: 'no-user', message: 'Sign-in did not return a user.');
     }
     return user;
   }
 
-  Future<void> sendVerificationEmail() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-current-user',
-        message: 'No signed-in user to send a verification email to.',
-      );
+  /// Turns a failed Firebase sign-in into a message that tells the
+  /// student what's actually going on, using their student_requests
+  /// history — e.g. "still pending" reads very differently from "wrong
+  /// password" even though Firebase itself can't tell them apart (no
+  /// account exists yet in both cases).
+  Future<String> describeSignInFailure(String email, FirestoreService firestoreService) async {
+    StudentRequest? request;
+    try {
+      request = await firestoreService.getLatestRequestForEmail(email.trim().toLowerCase());
+    } catch (_) {
+      return 'Incorrect email or password.';
     }
-    await user.sendEmailVerification();
-  }
 
-  Future<bool> checkEmailVerified() async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
-    await user.reload();
-    return _auth.currentUser?.emailVerified ?? false;
+    if (request == null) return 'Incorrect email or password.';
+
+    switch (request.status) {
+      case StudentRequestStatus.pending:
+        return 'Your registration is still pending librarian approval.';
+      case StudentRequestStatus.rejected:
+        return 'Your registration request was rejected.';
+      case StudentRequestStatus.approved:
+        // A request is Approved but sign-in still failed — most likely
+        // a wrong password, or the Cloud Function is still processing
+        // (student_requests.processingError would be set if it failed
+        // outright — that's surfaced to admins on the dashboard, not
+        // here, since there's nothing the student themselves can do
+        // about a Koha API outage).
+        return 'Incorrect email or password.';
+      default:
+        return 'Incorrect email or password.';
+    }
   }
 
   Future<User> signInWithMicrosoft() async {
@@ -91,86 +110,21 @@ class FirebaseAuthService {
     return raw.replaceFirst(RegExp(r'^\([A-Z]{2}\d{2}-[A-Z]{3}-\d{3}\)\s*'), '').trim();
   }
 
-  /// Signs in with email/password, then checks the matching
-  /// student_requests document. Both the sign-in call and the Firestore
-  /// query use the SAME normalized (trimmed, lowercased) email — a real
-  /// bug existed here where the raw, as-typed casing was used for the
-  /// Firestore query while Firebase's own account email was already
-  /// normalized, causing "no registration request found" for accounts
-  /// that genuinely existed, just typed with different capitalization.
-  Future<User> signInWithEmailAndPasswordApproved({
-    required String email,
-    required String password,
-    required FirestoreService firestoreService,
-  }) async {
-    final normalizedEmail = email.trim().toLowerCase();
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: normalizedEmail,
-      password: password,
-    );
-    final user = credential.user;
-    if (user == null) {
-      throw FirebaseAuthException(code: 'no-user', message: 'Sign-in did not return a user.');
-    }
-
-    StudentRequest? request;
-    try {
-      request = await firestoreService.getLatestRequestForEmail(normalizedEmail);
-    } catch (_) {
-      await _auth.signOut();
-      throw StateError('Could not check your registration status. Try again in a moment.');
-    }
-
-    if (request == null) {
-      await _auth.signOut();
-      throw StateError('No registration request found for this email.');
-    }
-
-    switch (request.status) {
-      case StudentRequestStatus.approved:
-        return user;
-      case StudentRequestStatus.rejected:
-        await _auth.signOut();
-        throw StateError('Your registration request was rejected.');
-      default:
-        await _auth.signOut();
-        throw StateError('Your registration is still pending librarian approval.');
-    }
-  }
-
   /// Sends a Firebase password-reset email. Deliberately does not
   /// distinguish "no account for this email" from "email sent" at the
   /// call site (see EmailLoginScreen) — showing a different message for
   /// each would let this button be used to check which emails are
   /// registered students.
+  ///
+  /// Note: this resets the FIREBASE half of the student's password only.
+  /// Under the dual-login model, that would leave Firebase and Koha out
+  /// of sync — Updated Authentication Workflow Phase 7 exists precisely
+  /// to avoid that by routing all password changes through an admin who
+  /// updates both sides together. Consider hiding this button once
+  /// Phase 5's request-password-change screen ships, so there's exactly
+  /// one path for changing a password, not two that can drift apart.
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
-  }
-
-  Future<bool> hasApprovedRequestSession(FirestoreService firestoreService) async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
-
-    final isMicrosoft = user.providerData.any((p) => p.providerId == 'microsoft.com');
-    if (isMicrosoft) return true;
-
-    final email = user.email?.trim().toLowerCase();
-    if (email == null) {
-      await _auth.signOut();
-      return false;
-    }
-
-    try {
-      final request = await firestoreService.getLatestRequestForEmail(email);
-      if (request?.status == StudentRequestStatus.approved) {
-        return true;
-      }
-      await _auth.signOut();
-      return false;
-    } catch (_) {
-      await _auth.signOut();
-      return false;
-    }
   }
 
   Future<void> signOut() => _auth.signOut();

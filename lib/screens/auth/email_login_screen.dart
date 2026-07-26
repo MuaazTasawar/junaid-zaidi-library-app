@@ -4,9 +4,19 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../services/firebase_auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../services/koha_auth_service.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
 
+/// The single real login screen (Updated Authentication Workflow, Phase
+/// 3 / Steps 12-16). Sends the SAME email + password to both Firebase
+/// Auth and Koha's /api/v1/auth/password — both must succeed, matching
+/// the doc's dual-login requirement. Koha's userid is set to the
+/// student's email at patron-creation time (see functions/index.js), so
+/// one email+password pair genuinely works for both systems; there's no
+/// separate "username" concept anymore, which is why the old
+/// login_screen.dart (Koha-only, username-based) was removed rather than
+/// kept as a second screen.
 class EmailLoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
 
@@ -19,7 +29,8 @@ class EmailLoginScreen extends StatefulWidget {
 class _EmailLoginScreenState extends State<EmailLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authService = FirebaseAuthService();
+  final _firebaseAuth = FirebaseAuthService();
+  final _kohaAuth = KohaAuthService();
   final _firestoreService = FirestoreService();
 
   String? _formError;
@@ -50,17 +61,36 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await _authService.signInWithEmailAndPasswordApproved(
-        email: email,
-        password: password,
-        firestoreService: _firestoreService,
-      );
+      // Step 1 of 2: Firebase. If this fails, nothing has been created
+      // anywhere, so there's nothing to roll back — just report why.
+      try {
+        await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
+      } on FirebaseAuthException catch (_) {
+        final message = await _firebaseAuth.describeSignInFailure(email, _firestoreService);
+        setState(() => _formError = message);
+        return;
+      }
+
+      // Step 2 of 2: Koha. Both must succeed (Step 15) — if Koha
+      // rejects credentials that Firebase just accepted, sign back out
+      // of Firebase so the app never sits in a half-authenticated
+      // state where one side thinks the student is in and the other
+      // doesn't.
+      try {
+        await _kohaAuth.login(username: email, password: password);
+      } on KohaAuthException catch (e) {
+        await _firebaseAuth.signOut();
+        setState(() => _formError = e.message);
+        return;
+      } catch (_) {
+        await _firebaseAuth.signOut();
+        setState(() =>
+            _formError = 'Could not verify your library account. Please try again.');
+        return;
+      }
+
       if (!mounted) return;
       widget.onLoginSuccess();
-    } on StateError catch (e) {
-      setState(() => _formError = e.message);
-    } catch (_) {
-      setState(() => _formError = 'Incorrect email or password.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -80,9 +110,12 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     }
 
     setState(() => _isSendingReset = true);
-    const neutralMessage = 'If that email has an account, a password reset link was sent.';
+    const neutralMessage =
+        'If that email has an approved account, a password reset link was sent. '
+        'Note: this only resets your Firebase sign-in — for your library (Koha) '
+        'password too, use "Request password change" from your profile instead.';
     try {
-      await _authService.sendPasswordResetEmail(email);
+      await _firebaseAuth.sendPasswordResetEmail(email);
       setState(() => _infoMessage = neutralMessage);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found' || e.code == 'invalid-email') {
@@ -134,7 +167,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppText('Log in with email', variant: 'h3', textAlign: TextAlign.center),
+            AppText('Log in', variant: 'h3', textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.xs),
             AppText(
               'Use the email and password you signed up with — only works once your request is approved.',
