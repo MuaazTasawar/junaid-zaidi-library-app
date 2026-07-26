@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Status values used by the librarian-approval workflow (SDS §9.7).
 class StudentRequestStatus {
@@ -10,7 +10,21 @@ class StudentRequestStatus {
 
 /// Mirrors a single document in the `student_requests` Firestore
 /// collection. Field names here must stay in sync with firestore.rules —
-/// the rules check `request.resource.data.email` and `.status` by name.
+/// the rules check `request.resource.data.email`, `.status`, and
+/// `.encryptedPassword` by name.
+///
+/// [encryptedPassword] holds the student's password, RSA-OAEP encrypted
+/// client-side with `CryptoConstants.passwordEncryptionPublicKeyPem`
+/// (Updated Authentication Workflow, Phase 1 / Step 2). No Firebase
+/// account and no Koha patron exist yet while this document is Pending —
+/// see `functions/index.js` for what happens on approval.
+///
+/// This field is deleted by the Cloud Function the moment it finishes
+/// creating the Firebase + Koha accounts (Phase 3 / Step 11 of the
+/// workflow doc) — a document should never sit in `Approved` status
+/// with `encryptedPassword` still populated for long. If you see one
+/// that has, the Cloud Function failed partway through; check its logs
+/// before manually approving anything else for that student.
 class StudentRequest {
   final String? id; // Firestore document ID, null until saved
   final String fullName;
@@ -19,6 +33,7 @@ class StudentRequest {
   final String email;
   final String phone;
   final String cnic;
+  final String encryptedPassword;
   final String status;
   final DateTime? createdAt;
 
@@ -30,6 +45,7 @@ class StudentRequest {
     required this.email,
     required this.phone,
     required this.cnic,
+    required this.encryptedPassword,
     this.status = StudentRequestStatus.pending,
     this.createdAt,
   });
@@ -42,6 +58,7 @@ class StudentRequest {
       'email': email,
       'phone': phone,
       'cnic': cnic,
+      'encryptedPassword': encryptedPassword,
       'status': status,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -57,12 +74,15 @@ class StudentRequest {
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
       cnic: map['cnic'] as String? ?? '',
+      // Absent once the Cloud Function has processed approval and
+      // deleted it — never assume this is non-empty for an Approved doc.
+      encryptedPassword: map['encryptedPassword'] as String? ?? '',
       status: map['status'] as String? ?? StudentRequestStatus.pending,
       createdAt: ts is Timestamp ? ts.toDate() : null,
     );
   }
 
-  StudentRequest copyWith({String? status}) {
+  StudentRequest copyWith({String? status, String? encryptedPassword}) {
     return StudentRequest(
       id: id,
       fullName: fullName,
@@ -71,6 +91,7 @@ class StudentRequest {
       email: email,
       phone: phone,
       cnic: cnic,
+      encryptedPassword: encryptedPassword ?? this.encryptedPassword,
       status: status ?? this.status,
       createdAt: createdAt,
     );

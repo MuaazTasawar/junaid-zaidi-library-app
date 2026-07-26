@@ -7,16 +7,27 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Updated Authentication Workflow, Phase 1-3: a document here holds
+    // an RSA-encrypted password while Pending. Only the Cloud Function
+    // (Admin SDK, bypasses these rules entirely) can decrypt it, create
+    // the Firebase + Koha accounts, and delete the field afterward — see
+    // functions/index.js. No client, including the admin dashboard, ever
+    // gets a decryption capability.
     match /student_requests/{requestId} {
       allow create: if request.auth != null
-                    && request.auth.token.email_verified == true
                     && request.resource.data.email == request.auth.token.email
-                    && request.resource.data.status == 'Pending';
+                    && request.resource.data.status == 'Pending'
+                    && request.resource.data.encryptedPassword is string
+                    && request.resource.data.encryptedPassword.size() > 0;
 
       allow read: if request.auth != null
                   && (resource.data.email == request.auth.token.email
                       || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
 
+      // Admins may only flip status (Pending -> Approved/Rejected).
+      // Nobody client-side may edit encryptedPassword after creation —
+      // that field is write-once from the client, then only ever
+      // touched again by the Cloud Function.
       allow update: if request.auth != null
                     && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
@@ -25,15 +36,32 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if request.auth != null
-                  && request.auth.uid == userId;
-
+      allow read: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null
                     && request.auth.uid == userId
                     && request.auth.token.email.matches('.*@isbstudent[.]comsats[.]edu[.]pk$');
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Updated Authentication Workflow, Phase 7: student-initiated,
+    // admin-mediated password change. `newEncryptedPassword` is the
+    // same RSA-OAEP scheme as student_requests.encryptedPassword —
+    // only the syncPasswordChange Cloud Function can decrypt it.
+    match /password_change_requests/{requestId} {
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'Pending'
+                    && request.resource.data.newEncryptedPassword is string
+                    && request.resource.data.newEncryptedPassword.size() > 0;
+
+      allow read: if request.auth != null
+                  && (resource.data.uid == request.auth.uid
+                      || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
 
       allow update: if request.auth != null
-                    && request.auth.uid == userId;
+                    && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
 
       allow delete: if false;
     }

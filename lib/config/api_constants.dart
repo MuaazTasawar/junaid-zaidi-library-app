@@ -1,4 +1,4 @@
-﻿/// Centralized API configuration (SDS §7.4). Every service reads from
+/// Centralized API configuration (SDS §7.4). Every service reads from
 /// here — never hardcode a URL anywhere else in the app.
 class ApiConstants {
   const ApiConstants._();
@@ -25,6 +25,20 @@ class ApiConstants {
   static const String studentEmailDomain = '@isbstudent.comsats.edu.pk';
 
   static const String firestoreUsersCollection = 'users';
+
+  // ---- Added: Updated Authentication Workflow (encrypted-pending +
+  // automated Koha patron creation + dual login + admin-mediated
+  // password change) ----
+
+  /// Written by the student (Phase 5 UI) when requesting a password
+  /// change, and read/updated by the admin dashboard + the
+  /// `syncPasswordChange` Cloud Function. Note: the actual Koha
+  /// patron-creation and password-sync endpoints are called from
+  /// `functions/index.js` (server-side only, using privileged Koha
+  /// staff API credentials) — they are deliberately NOT declared here,
+  /// since this file's constants are readable inside the compiled app.
+  static const String firestorePasswordChangeRequestsCollection =
+      'password_change_requests';
 
   static const Duration requestTimeout = Duration(seconds: 15);
 }

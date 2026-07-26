@@ -55,3 +55,9 @@ app.*.map.json
 *.pem
 *.key
 service-account*.json
+# Environment / secrets — .env.* also matches .env.example, allow it back
+!.env.example
+
+# Cloud Functions (Node.js) — added: Updated Authentication Workflow
+functions/node_modules/
+functions/lib/
