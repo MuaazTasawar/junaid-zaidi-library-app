@@ -37,10 +37,12 @@ service cloud.firestore {
       // Admins may only flip status (Pending -> Approved/Rejected).
       // Nobody client-side may edit encryptedPassword after creation —
       // that field is write-once from the client, then only ever
-      // touched again by the Cloud Function.
+      // touched again by the Cloud Function. Tightened in Phase 6:
+      // status is restricted to the two real outcomes, not any string.
       allow update: if request.auth != null
                     && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['Approved', 'Rejected'];
 
       allow delete: if false;
     }
@@ -71,7 +73,8 @@ service cloud.firestore {
 
       allow update: if request.auth != null
                     && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['Approved', 'Rejected'];
 
       allow delete: if false;
     }

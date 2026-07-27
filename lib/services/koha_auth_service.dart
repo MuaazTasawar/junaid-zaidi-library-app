@@ -1,5 +1,6 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:http/http.dart' as http;
 
 import '../config/api_constants.dart';
@@ -15,10 +16,11 @@ class KohaAuthException implements Exception {
   String toString() => message;
 }
 
-/// The REAL login for this app. Firebase's job ends at email
-/// verification (SDS §9.9) — once a librarian has approved a student and
-/// created their Koha patron record, every subsequent login goes through
-/// Koha's own POST /api/v1/auth/password, not Firebase.
+/// Half of the real login for this app (Updated Authentication
+/// Workflow, Phase 3) — the other half is FirebaseAuthService. See
+/// EmailLoginScreen, which calls both with the same email + password
+/// and requires both to succeed. This class only ever handles the Koha
+/// side of that pair.
 class KohaAuthService {
   final http.Client _client;
   final SecureStorageService _secureStorage;
@@ -27,9 +29,13 @@ class KohaAuthService {
       : _client = client ?? http.Client(),
         _secureStorage = secureStorage ?? SecureStorageService();
 
-  // TEMP — hardcoded dev account so the app is reachable without a real
-  // Koha server or the mock server running. Checked before any network
-  // call is made. REMOVE before shipping — search this file for "TEMP —".
+  // DEV-ONLY hardcoded account so the app is reachable without a real
+  // Koha server or the mock server running. Gated behind kDebugMode —
+  // this branch is compiled out of release builds entirely (Dart's
+  // compiler strips unreachable `if (kDebugMode)` branches in release
+  // mode), so it can never work in anything you actually ship, not just
+  // "shouldn't" work. Still search this file for "DEV-ONLY" before
+  // shipping, to confirm.
   static const _devUsername = 'testuser';
   static const _devPassword = 'test1234';
   static const _devPatronId = '0000';
@@ -38,9 +44,7 @@ class KohaAuthService {
   /// [SecureStorageService], and returns the patron ID on success.
   /// Throws [KohaAuthException] with a user-facing message on failure.
   Future<String> login({required String username, required String password}) async {
-    // TEMP — see the field comments above. This check runs before any
-    // network request, so it works with no server at all reachable.
-    if (username == _devUsername && password == _devPassword) {
+    if (kDebugMode && username == _devUsername && password == _devPassword) {
       await _secureStorage.saveSession(token: 'dev-hardcoded-token', patronId: _devPatronId);
       return _devPatronId;
     }
