@@ -16,6 +16,7 @@ import 'more/guides_screen.dart';
 import 'more/map_screen.dart';
 import 'more/more_screen.dart';
 import 'more/profile_screen.dart';
+import 'more/request_password_change_screen.dart';
 
 /// Root navigation shell: bottom tab bar (Home / Library Resources /
 /// Explore Spaces / More) mirroring app/(tabs)/_layout.js, with a nested
@@ -40,6 +41,7 @@ class _RootShellState extends State<RootShell> {
   // heading), so it's the only route left without a wrapping AppBar here.
   static const Map<String, String> _moreStackTitles = {
     MoreRoutes.profile: 'Profile',
+    MoreRoutes.changePassword: 'Request Password Change',
     MoreRoutes.guides: 'Guides & Documentation',
     MoreRoutes.map: 'Junaid Zaidi on Maps',
     MoreRoutes.about: 'About',
@@ -54,6 +56,8 @@ class _RootShellState extends State<RootShell> {
     switch (settings.name) {
       case MoreRoutes.profile:
         page = const ProfileScreen();
+      case MoreRoutes.changePassword:
+        page = const RequestPasswordChangeScreen();
       case MoreRoutes.guides:
         page = const GuidesScreen();
       case MoreRoutes.map:

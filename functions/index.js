@@ -238,3 +238,93 @@ exports.onStudentRequestApproved = onDocumentUpdated(
     }
   },
 );
+
+/**
+ * Updated Authentication Workflow, Phase 7: fires when an admin flips a
+ * password_change_requests document to Approved. Updates BOTH the
+ * Firebase password and the Koha patron's password to the same new
+ * value, so they never drift apart — the whole reason this workflow
+ * routes password changes through an admin instead of letting students
+ * self-serve one side (e.g. Firebase's own reset-email flow) and leave
+ * the other stale.
+ */
+exports.onPasswordChangeApproved = onDocumentUpdated(
+  'password_change_requests/{requestId}',
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const requestId = event.params.requestId;
+    const docRef = event.data.after.ref;
+
+    const justApproved = before.status !== 'Approved' && after.status === 'Approved';
+    if (!justApproved) return;
+
+    if (!after.newEncryptedPassword) {
+      logger.info(`password_change_requests/${requestId} already processed — skipping.`);
+      return;
+    }
+
+    const { uid, email } = after;
+
+    try {
+      const newPassword = decryptPassword(after.newEncryptedPassword);
+
+      // Firebase half.
+      await admin.auth().updateUser(uid, { password: newPassword });
+
+      // Koha half — needs the borrower number onStudentRequestApproved
+      // linked onto users/{uid} back at registration time.
+      const userDoc = await admin.firestore().collection('users').doc(uid).get();
+      const kohaBorrowerNumber = userDoc.exists ? userDoc.data().kohaBorrowerNumber : null;
+      if (!kohaBorrowerNumber) {
+        throw new Error(
+          `No kohaBorrowerNumber on users/${uid} — cannot sync the Koha password. ` +
+            'This student may predate the automated linking (Phase 3), or that step failed silently.',
+        );
+      }
+
+      const accessToken = await getKohaAccessToken();
+      // NOTE: verify this exact path against your Koha version's API
+      // docs before relying on it — Koha's REST API has grown a
+      // dedicated patron-password endpoint on newer releases, but on
+      // older ones a plain PATCH/PUT to /api/v1/patrons/{id} with a
+      // password field may be what's actually needed instead.
+      const res = await fetch(
+        `${process.env.KOHA_STAFF_BASE_URL}/api/v1/patrons/${kohaBorrowerNumber}/password`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: newPassword }),
+        },
+      );
+      if (!res.ok) {
+        throw new Error(`Koha password update failed: ${res.status} ${await res.text()}`);
+      }
+
+      await docRef.update({
+        newEncryptedPassword: admin.firestore.FieldValue.delete(),
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        processingError: admin.firestore.FieldValue.delete(),
+      });
+
+      logger.info(`Synced password change for uid=${uid} (${email}).`);
+    } catch (err) {
+      logger.error(`Failed to sync password change for uid=${uid} (${email}):`, err);
+
+      // Same reasoning as onStudentRequestApproved: don't delete
+      // newEncryptedPassword on failure, so this can be retried, and
+      // surface the error for the admin dashboard.
+      await docRef
+        .update({
+          processingError: err.message || String(err),
+          processingErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+        .catch(() => {});
+
+      throw err;
+    }
+  },
+);

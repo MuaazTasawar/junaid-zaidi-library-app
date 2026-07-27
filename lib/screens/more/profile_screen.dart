@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../models/profile_data.dart';
 import '../../navigation/auth_scope.dart';
+import '../../navigation/routes.dart';
 import '../../services/profile_loader.dart';
 import '../../theme/theme.dart';
 import '../../widgets/ui.dart';
@@ -161,6 +162,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ]),
           const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: 'Request Password Change',
+            variant: 'secondary',
+            onPressed: () => Navigator.of(context).pushNamed(MoreRoutes.changePassword),
+          ),
+          const SizedBox(height: AppSpacing.ms),
           AppButton(
             label: 'Log Out',
             variant: 'secondary',
